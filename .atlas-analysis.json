@@ -1,0 +1,254 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "bun-scikit",
+  "projectDescription": "Scikit-learn-inspired machine learning library for Bun/TypeScript with native Zig acceleration",
+  "theme": "aspen",
+  "primaryColor": "#f97316",
+  "lightColor": "#fb923c",
+  "darkColor": "#ea580c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/preprocessing",
+              "concepts/model-training",
+              "concepts/model-evaluation",
+              "concepts/pipelines"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/linear-models",
+              "guides/tree-ensembles",
+              "guides/clustering",
+              "guides/dimensionality-reduction",
+              "guides/model-selection",
+              "guides/zig-acceleration"
+            ]
+          },
+          {
+            "group": "Performance",
+            "pages": [
+              "performance/benchmarks",
+              "performance/native-runtime",
+              "performance/optimization-tips"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Linear Models",
+            "pages": [
+              "api/linear-models/linear-regression",
+              "api/linear-models/logistic-regression",
+              "api/linear-models/ridge",
+              "api/linear-models/lasso",
+              "api/linear-models/elastic-net",
+              "api/linear-models/sgd"
+            ]
+          },
+          {
+            "group": "Tree & Ensemble",
+            "pages": [
+              "api/tree-ensemble/decision-tree",
+              "api/tree-ensemble/random-forest",
+              "api/tree-ensemble/gradient-boosting",
+              "api/tree-ensemble/adaboost",
+              "api/tree-ensemble/isolation-forest"
+            ]
+          },
+          {
+            "group": "Neighbors & Naive Bayes",
+            "pages": [
+              "api/neighbors/kneighbors-classifier",
+              "api/neighbors/kneighbors-regressor",
+              "api/naive-bayes/gaussian-nb"
+            ]
+          },
+          {
+            "group": "SVM",
+            "pages": [
+              "api/svm/svc",
+              "api/svm/svr",
+              "api/svm/linear-svc",
+              "api/svm/one-class-svm"
+            ]
+          },
+          {
+            "group": "Clustering",
+            "pages": [
+              "api/clustering/kmeans",
+              "api/clustering/dbscan",
+              "api/clustering/agglomerative-clustering",
+              "api/clustering/spectral-clustering",
+              "api/clustering/birch",
+              "api/clustering/optics"
+            ]
+          },
+          {
+            "group": "Decomposition",
+            "pages": [
+              "api/decomposition/pca",
+              "api/decomposition/truncated-svd",
+              "api/decomposition/fast-ica",
+              "api/decomposition/nmf",
+              "api/decomposition/kernel-pca"
+            ]
+          },
+          {
+            "group": "Manifold Learning",
+            "pages": [
+              "api/manifold/tsne",
+              "api/manifold/isomap",
+              "api/manifold/lle",
+              "api/manifold/mds"
+            ]
+          },
+          {
+            "group": "Preprocessing",
+            "pages": [
+              "api/preprocessing/standard-scaler",
+              "api/preprocessing/minmax-scaler",
+              "api/preprocessing/robust-scaler",
+              "api/preprocessing/normalizer",
+              "api/preprocessing/label-encoder",
+              "api/preprocessing/one-hot-encoder",
+              "api/preprocessing/polynomial-features",
+              "api/preprocessing/simple-imputer"
+            ]
+          },
+          {
+            "group": "Model Selection",
+            "pages": [
+              "api/model-selection/train-test-split",
+              "api/model-selection/kfold",
+              "api/model-selection/stratified-kfold",
+              "api/model-selection/cross-val-score",
+              "api/model-selection/grid-search-cv",
+              "api/model-selection/randomized-search-cv"
+            ]
+          },
+          {
+            "group": "Metrics",
+            "pages": [
+              "api/metrics/regression",
+              "api/metrics/classification",
+              "api/metrics/clustering"
+            ]
+          },
+          {
+            "group": "Pipeline & Composition",
+            "pages": [
+              "api/pipeline/pipeline",
+              "api/pipeline/column-transformer",
+              "api/pipeline/feature-union"
+            ]
+          },
+          {
+            "group": "Meta-Estimators",
+            "pages": [
+              "api/meta/voting-classifier",
+              "api/meta/stacking-classifier",
+              "api/meta/bagging-classifier",
+              "api/meta/calibrated-classifier-cv"
+            ]
+          },
+          {
+            "group": "Feature Selection",
+            "pages": [
+              "api/feature-selection/variance-threshold",
+              "api/feature-selection/select-k-best",
+              "api/feature-selection/rfe"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Project",
+            "pages": [
+              "resources/sklearn-parity",
+              "resources/changelog",
+              "resources/contributing",
+              "resources/support"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Scikit-learn compatible API for Bun/TypeScript",
+    "Native Zig acceleration for tree-based models",
+    "Comprehensive ML algorithms (regression, classification, clustering)",
+    "Built-in preprocessing and feature engineering tools",
+    "Cross-validation and hyperparameter tuning",
+    "Performance benchmarks vs Python scikit-learn",
+    "Zero-copy data pipelines",
+    "Type-safe ML workflows"
+  ],
+  "publicApiSurface": [
+    "LinearRegression",
+    "LogisticRegression",
+    "Ridge",
+    "Lasso",
+    "ElasticNet",
+    "SGDClassifier",
+    "SGDRegressor",
+    "DecisionTreeClassifier",
+    "DecisionTreeRegressor",
+    "RandomForestClassifier",
+    "RandomForestRegressor",
+    "GradientBoostingClassifier",
+    "GradientBoostingRegressor",
+    "AdaBoostClassifier",
+    "KNeighborsClassifier",
+    "KNeighborsRegressor",
+    "GaussianNB",
+    "SVC",
+    "SVR",
+    "LinearSVC",
+    "OneClassSVM",
+    "KMeans",
+    "DBSCAN",
+    "AgglomerativeClustering",
+    "PCA",
+    "TruncatedSVD",
+    "TSNE",
+    "IsolationForest",
+    "StandardScaler",
+    "MinMaxScaler",
+    "LabelEncoder",
+    "OneHotEncoder",
+    "PolynomialFeatures",
+    "Pipeline",
+    "ColumnTransformer",
+    "trainTestSplit",
+    "KFold",
+    "crossValScore",
+    "GridSearchCV",
+    "RandomizedSearchCV",
+    "meanSquaredError",
+    "accuracyScore",
+    "f1Score",
+    "rocAucScore"
+  ]
+}
