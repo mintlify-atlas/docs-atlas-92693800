@@ -516,7 +516,7 @@ Apply different transformations to different columns:
 ```typescript
 import { ColumnTransformer, StandardScaler, OneHotEncoder } from "bun-scikit";
 
-// Coming soon - apply different preprocessing to different columns
+// Apply different preprocessing to different columns
 const preprocessor = new ColumnTransformer([
   ["num", new StandardScaler(), [0, 1, 2]],      // Numeric columns
   ["cat", new OneHotEncoder(), [3, 4]],          // Categorical columns
@@ -535,7 +535,7 @@ Combine multiple transformers in parallel:
 ```typescript
 import { FeatureUnion, PCA, PolynomialFeatures } from "bun-scikit";
 
-// Coming soon - combine features from multiple sources
+// Combine features from multiple sources
 const featureUnion = new FeatureUnion([
   ["pca", new PCA({ nComponents: 2 })],
   ["poly", new PolynomialFeatures({ degree: 2 })],
