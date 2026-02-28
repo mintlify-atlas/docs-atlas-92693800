@@ -1,0 +1,329 @@
+---
+title: BaggingClassifier
+description: Ensemble classifier using bootstrap aggregating
+---
+
+BaggingClassifier trains multiple base estimators on random subsets of the dataset.
+
+## Constructor
+
+```typescript
+import { BaggingClassifier } from 'scikitjs';
+
+const bagging = new BaggingClassifier(estimatorFactory, options);
+```
+
+<ParamField path="estimatorFactory" type="estimator | () => estimator" required>
+  Base estimator to fit on random subsets. Can be an instance or factory function.
+</ParamField>
+
+<ParamField path="options.nEstimators" type="number" default="10">
+  Number of base estimators in the ensemble.
+</ParamField>
+
+<ParamField path="options.maxSamples" type="number" default="1.0">
+  Number of samples to draw:
+  - If int, draw `maxSamples` samples
+  - If float, draw `maxSamples * nSamples` samples
+</ParamField>
+
+<ParamField path="options.maxFeatures" type="number" default="1.0">
+  Number of features to draw:
+  - If int, draw `maxFeatures` features
+  - If float, draw `maxFeatures * nFeatures` features
+</ParamField>
+
+<ParamField path="options.bootstrap" type="boolean" default="true">
+  Whether samples are drawn with replacement.
+</ParamField>
+
+<ParamField path="options.bootstrapFeatures" type="boolean" default="false">
+  Whether features are drawn with replacement.
+</ParamField>
+
+<ParamField path="options.randomState" type="number">
+  Random seed for reproducibility.
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the bagging ensemble.
+
+```typescript
+fit(X: number[][], y: number[], sampleWeight?: number[]): BaggingClassifier
+```
+
+### predict
+
+Predict class labels using majority voting.
+
+```typescript
+predict(X: number[][]): number[]
+```
+
+### predictProba
+
+Predict class probabilities.
+
+```typescript
+predictProba(X: number[][]): number[][]
+```
+
+### score
+
+Return accuracy score.
+
+```typescript
+score(X: number[][], y: number[]): number
+```
+
+## Properties
+
+<ParamField path="classes_" type="number[]">
+  The classes labels
+</ParamField>
+
+<ParamField path="estimators_" type="estimator[]">
+  The fitted base estimators
+</ParamField>
+
+<ParamField path="estimatorsFeatures_" type="number[][]">
+  The feature indices used by each estimator
+</ParamField>
+
+## Examples
+
+### Basic Bagging
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Create bagging ensemble with decision trees
+const bagging = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  { nEstimators: 10, randomState: 42 }
+);
+
+bagging.fit(X, y);
+
+const predictions = bagging.predict([[3.5, 4.5], [6.5, 7.5]]);
+console.log(predictions); // [0, 1]
+
+const probabilities = bagging.predictProba([[3.5, 4.5]]);
+console.log(probabilities); // [[0.8, 0.2]]
+```
+
+### Subsample Features
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+const X = [
+  [1, 2, 3, 4], [2, 3, 4, 5],
+  [3, 4, 5, 6], [4, 5, 6, 7]
+];
+const y = [0, 0, 1, 1];
+
+// Use random feature subsets
+const bagging = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  {
+    nEstimators: 10,
+    maxFeatures: 0.5,  // Use 50% of features
+    randomState: 42
+  }
+);
+
+bagging.fit(X, y);
+```
+
+### Control Sample Size
+
+```typescript
+import { BaggingClassifier, KNeighborsClassifier } from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Use 80% of samples for each estimator
+const bagging = new BaggingClassifier(
+  () => new KNeighborsClassifier({ nNeighbors: 3 }),
+  {
+    nEstimators: 20,
+    maxSamples: 0.8,
+    bootstrap: true,
+    randomState: 42
+  }
+);
+
+bagging.fit(X, y);
+```
+
+### Without Replacement (Pasting)
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+// Pasting: bootstrap=false means sampling without replacement
+const pasting = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  {
+    nEstimators: 10,
+    maxSamples: 0.7,
+    bootstrap: false,  // No replacement
+    randomState: 42
+  }
+);
+
+pasting.fit(X, y);
+```
+
+### Random Subspaces
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+// Random subspaces: sample features without replacement
+const randomSubspaces = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  {
+    nEstimators: 10,
+    maxFeatures: 0.5,
+    bootstrapFeatures: false,  // Sample features without replacement
+    randomState: 42
+  }
+);
+
+randomSubspaces.fit(X, y);
+```
+
+### Random Patches
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+// Random patches: sample both samples and features
+const randomPatches = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  {
+    nEstimators: 10,
+    maxSamples: 0.8,
+    maxFeatures: 0.8,
+    bootstrap: true,
+    bootstrapFeatures: true,
+    randomState: 42
+  }
+);
+
+randomPatches.fit(X, y);
+```
+
+### Out-of-Bag Score Estimation
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+const bagging = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  {
+    nEstimators: 50,
+    maxSamples: 0.8,
+    bootstrap: true,
+    randomState: 42
+  }
+);
+
+bagging.fit(XTrain, yTrain);
+
+// Use separate test set for evaluation
+const testScore = bagging.score(XTest, yTest);
+console.log('Test score:', testScore);
+```
+
+### Reduce Overfitting
+
+```typescript
+import {
+  BaggingClassifier,
+  DecisionTreeClassifier,
+  trainTestSplit
+} from 'scikitjs';
+
+const X = /* your data */;
+const y = /* your labels */;
+
+const [XTrain, XTest, yTrain, yTest] = trainTestSplit(X, y, {
+  testSize: 0.3,
+  randomState: 42
+});
+
+// Single decision tree (prone to overfitting)
+const singleTree = new DecisionTreeClassifier();
+singleTree.fit(XTrain, yTrain);
+console.log('Single tree:', singleTree.score(XTest, yTest));
+
+// Bagging ensemble (reduces overfitting)
+const bagging = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  { nEstimators: 50, randomState: 42 }
+);
+bagging.fit(XTrain, yTrain);
+console.log('Bagging:', bagging.score(XTest, yTest));
+```
+
+### Inspect Individual Estimators
+
+```typescript
+import { BaggingClassifier, DecisionTreeClassifier } from 'scikitjs';
+
+const bagging = new BaggingClassifier(
+  () => new DecisionTreeClassifier(),
+  { nEstimators: 10, randomState: 42 }
+);
+
+bagging.fit(X, y);
+
+// Access individual estimators
+for (let i = 0; i < bagging.estimators_.length; i++) {
+  const estimator = bagging.estimators_[i];
+  const features = bagging.estimatorsFeatures_[i];
+  
+  console.log(`Estimator ${i}:`);
+  console.log('  Features used:', features);
+  console.log('  Tree depth:', estimator.getDepth?.());
+}
+```
+
+### Parallel Diversity
+
+```typescript
+import {
+  BaggingClassifier,
+  LogisticRegression,
+  DecisionTreeClassifier,
+  KNeighborsClassifier
+} from 'scikitjs';
+
+// Bagging with different base estimators
+const models = [
+  new BaggingClassifier(() => new LogisticRegression(), { nEstimators: 10 }),
+  new BaggingClassifier(() => new DecisionTreeClassifier(), { nEstimators: 10 }),
+  new BaggingClassifier(() => new KNeighborsClassifier(), { nEstimators: 10 })
+];
+
+for (const model of models) {
+  model.fit(XTrain, yTrain);
+  console.log(model.constructor.name, model.score(XTest, yTest));
+}
+```

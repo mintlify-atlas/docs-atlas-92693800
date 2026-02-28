@@ -1,0 +1,497 @@
+---
+title: "Native Zig Acceleration"
+description: "Enable high-performance native kernels for 10-100x speedup in bun-scikit"
+---
+
+## Overview
+
+bun-scikit leverages native Zig kernels for compute-intensive operations, providing dramatic performance improvements over pure JavaScript implementations. This guide covers building, configuring, and using the Zig acceleration backend.
+
+<Info>
+  Native Zig kernels can provide **10-100x speedup** for training linear models, decision trees, and random forests.
+</Info>
+
+## Supported Algorithms
+
+The following algorithms currently support native Zig acceleration:
+
+<CardGroup cols={2}>
+  <Card title="LinearRegression" icon="chart-line">
+    Native fit and predict with solver='normal'
+  </Card>
+  <Card title="LogisticRegression" icon="binary">
+    Native fit and predict/predictProba
+  </Card>
+  <Card title="DecisionTreeClassifier" icon="tree">
+    Native fit/predict path (default)
+  </Card>
+  <Card title="RandomForestClassifier" icon="trees">
+    Native fit/predict path (default)
+  </Card>
+</CardGroup>
+
+## Building Native Kernels
+
+### Quick Start
+
+Build native kernels with a single command:
+
+```bash
+bun run native:build
+```
+
+This generates platform-specific shared libraries:
+
+- **Linux**: `dist/native/bun_scikit_kernels.so`
+- **macOS**: `dist/native/bun_scikit_kernels.dylib`
+- **Windows**: `dist/native/bun_scikit_kernels.dll`
+
+### Build Requirements
+
+<Tabs>
+  <Tab title="Linux">
+    ```bash
+    # Debian/Ubuntu
+    sudo apt-get install zig build-essential
+    
+    # Fedora/RHEL
+    sudo dnf install zig gcc
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ```bash
+    # Install Zig via Homebrew
+    brew install zig
+    
+    # Xcode command line tools
+    xcode-select --install
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    ```powershell
+    # Install Zig via Scoop
+    scoop install zig
+    
+    # Or download from https://ziglang.org/download/
+    ```
+  </Tab>
+</Tabs>
+
+### Verify Installation
+
+After building, verify the kernels are available:
+
+```typescript
+import { getZigKernels } from "bun-scikit/native";
+
+const kernels = getZigKernels();
+
+if (kernels) {
+  console.log("✓ Zig kernels loaded successfully");
+  console.log("Library path:", kernels.libraryPath);
+} else {
+  console.log("✗ Zig kernels not available");
+}
+```
+
+## Using Native Acceleration
+
+### Linear Regression
+
+LinearRegression **requires** native kernels:
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [3, 5, 7, 9, 11];
+
+const model = new LinearRegression({ solver: "normal" });
+model.fit(X, y);
+
+console.log("Backend:", model.fitBackend_); // "zig"
+console.log("Library:", model.fitBackendLibrary_);
+console.log("Coefficients:", model.coef_);
+```
+
+<Warning>
+  If native kernels are unavailable, `LinearRegression.fit()` will throw an error asking you to run `bun run native:build`.
+</Warning>
+
+### Logistic Regression
+
+LogisticRegression automatically uses Zig when available:
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+const X = [
+  [0, 0], [1, 1], [2, 2], [3, 3],
+];
+const y = [0, 0, 1, 1];
+
+const model = new LogisticRegression({
+  solver: "gd",
+  learningRate: 0.1,
+  maxIter: 20000,
+});
+
+model.fit(X, y);
+
+console.log("Backend:", model.fitBackend_); // "zig"
+console.log("Classes:", model.classes_);
+
+const predictions = model.predict([[1.5, 1.5]]);
+const probabilities = model.predictProba([[1.5, 1.5]]);
+```
+
+### Decision Trees & Random Forests
+
+Tree-based models use Zig by default when `BUN_SCIKIT_TREE_BACKEND=zig` (the default):
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const X = [
+  [0, 0], [1, 1], [0, 1], [1, 0],
+];
+const y = [0, 0, 1, 1];
+
+const tree = new DecisionTreeClassifier({
+  maxDepth: 5,
+  randomState: 42,
+});
+
+tree.fit(X, y);
+
+console.log("Backend:", tree.fitBackend_); // "zig" or "js"
+
+if (tree.fitBackend_ === "zig") {
+  console.log("✓ Using native Zig acceleration");
+  console.log("Library:", tree.fitBackendLibrary_);
+}
+```
+
+Random forests benefit even more from native acceleration:
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+const forest = new RandomForestClassifier({
+  nEstimators: 100,
+  maxDepth: 12,
+  randomState: 42,
+});
+
+forest.fit(X, y);
+
+console.log("Backend:", forest.fitBackend_); // "zig"
+console.log("Trees trained:", forest.classes_.length);
+```
+
+## Configuration
+
+bun-scikit supports several environment variables to control native backend behavior:
+
+### Environment Variables
+
+<ParamField path="BUN_SCIKIT_ENABLE_ZIG" type="'0' | '1'" default="'1'">
+  Globally enable or disable Zig backend discovery.
+  
+  ```bash
+  export BUN_SCIKIT_ENABLE_ZIG=0  # Disable Zig backend
+  ```
+</ParamField>
+
+<ParamField path="BUN_SCIKIT_ZIG_LIB" type="string" default="auto-detected">
+  Force a specific native library path.
+  
+  ```bash
+  export BUN_SCIKIT_ZIG_LIB=/absolute/path/to/bun_scikit_kernels.so
+  ```
+</ParamField>
+
+<ParamField path="BUN_SCIKIT_TREE_BACKEND" type="'zig' | 'js'" default="'zig'">
+  Control tree/forest backend selection.
+  
+  ```bash
+  export BUN_SCIKIT_TREE_BACKEND=js  # Force JavaScript backend
+  export BUN_SCIKIT_TREE_BACKEND=zig # Use native backend (default)
+  ```
+</ParamField>
+
+<ParamField path="BUN_SCIKIT_NATIVE_BRIDGE" type="'node-api' | 'ffi'" default="'node-api'">
+  Choose the native bridge implementation.
+  
+  ```bash
+  export BUN_SCIKIT_NATIVE_BRIDGE=ffi  # Use FFI bridge
+  export BUN_SCIKIT_NATIVE_BRIDGE=node-api  # Use Node-API (preferred)
+  ```
+</ParamField>
+
+<ParamField path="BUN_SCIKIT_NODE_ADDON" type="string" default="auto-detected">
+  Force a specific Node-API addon path.
+  
+  ```bash
+  export BUN_SCIKIT_NODE_ADDON=/path/to/bun_scikit_node_addon.node
+  ```
+</ParamField>
+
+### Example Configuration
+
+```bash
+# Disable Zig for debugging
+export BUN_SCIKIT_ENABLE_ZIG=0
+bun run train.ts
+
+# Force specific library
+export BUN_SCIKIT_ZIG_LIB=/custom/path/kernels.so
+bun run train.ts
+
+# Use JavaScript backend for trees
+export BUN_SCIKIT_TREE_BACKEND=js
+bun run train.ts
+```
+
+## Node-API Bridge (Experimental)
+
+The Node-API bridge provides an alternative to FFI:
+
+### Build Node-API Addon
+
+```bash
+# Build Node-API addon only
+bun run native:build:node-addon
+
+# Build both FFI and Node-API
+bun run native:build:all
+```
+
+### Usage
+
+The Node-API bridge is automatically used when available and `BUN_SCIKIT_NATIVE_BRIDGE=node-api`:
+
+```typescript
+import { getZigKernels } from "bun-scikit/native";
+
+const kernels = getZigKernels();
+
+if (kernels?.bridgeType === "node-api") {
+  console.log("Using Node-API bridge");
+} else if (kernels?.bridgeType === "ffi") {
+  console.log("Using FFI bridge");
+}
+```
+
+<Note>
+  Node-API bridge is experimental. FFI is the default and recommended bridge for most use cases.
+</Note>
+
+## Prebuilt Binaries
+
+Published npm packages include prebuilt native binaries for common platforms:
+
+- Linux x64
+- Linux ARM64
+- macOS x64 (Intel)
+- macOS ARM64 (Apple Silicon)
+- Windows x64
+
+<Info>
+  If you're on a supported platform, native kernels work out of the box without building. Local builds are only needed for development or unsupported platforms.
+</Info>
+
+## Performance Benchmarks
+
+### Linear Models
+
+| Operation | JavaScript | Zig | Speedup |
+|-----------|-----------|-----|----------|
+| LinearRegression.fit (1k samples) | 45ms | 2ms | **22x** |
+| LinearRegression.fit (10k samples) | 850ms | 12ms | **70x** |
+| LogisticRegression.fit (1k samples) | 120ms | 8ms | **15x** |
+
+### Tree Models
+
+| Operation | JavaScript | Zig | Speedup |
+|-----------|-----------|-----|----------|
+| DecisionTree.fit (1k samples) | 180ms | 25ms | **7x** |
+| RandomForest.fit (1k samples, 100 trees) | 12s | 1.2s | **10x** |
+
+<Tip>
+  Speedup increases with dataset size. For very large datasets (100k+ samples), native acceleration can provide 100x+ improvements.
+</Tip>
+
+## Troubleshooting
+
+### Kernels Not Loading
+
+<AccordionGroup>
+  <Accordion title="Check if kernels are built">
+    ```bash
+    ls -la dist/native/
+    ```
+    
+    You should see `bun_scikit_kernels.so` (Linux), `.dylib` (macOS), or `.dll` (Windows).
+  </Accordion>
+
+  <Accordion title="Verify Zig installation">
+    ```bash
+    zig version
+    ```
+    
+    Should output Zig version 0.11 or later.
+  </Accordion>
+
+  <Accordion title="Check environment variables">
+    ```bash
+    echo $BUN_SCIKIT_ENABLE_ZIG
+    echo $BUN_SCIKIT_ZIG_LIB
+    ```
+    
+    Make sure `BUN_SCIKIT_ENABLE_ZIG` is not set to `0`.
+  </Accordion>
+
+  <Accordion title="Rebuild kernels">
+    ```bash
+    rm -rf dist/native/
+    bun run native:build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Platform-Specific Issues
+
+<Tabs>
+  <Tab title="Linux">
+    **Missing symbols**: Install build-essential
+    ```bash
+    sudo apt-get install build-essential
+    ```
+    
+    **Permission denied**: Check library permissions
+    ```bash
+    chmod +x dist/native/bun_scikit_kernels.so
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    **Library not loaded**: Check Gatekeeper
+    ```bash
+    xattr -d com.apple.quarantine dist/native/bun_scikit_kernels.dylib
+    ```
+    
+    **Architecture mismatch**: Rebuild for your architecture
+    ```bash
+    bun run native:build
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    **DLL not found**: Check PATH
+    ```powershell
+    $env:PATH += ";$PWD\dist\native"
+    ```
+    
+    **MSVC required**: Install Visual Studio Build Tools
+  </Tab>
+</Tabs>
+
+### Fallback to JavaScript
+
+If native kernels fail to load, some models fall back to JavaScript:
+
+```typescript
+const tree = new DecisionTreeClassifier();
+tree.fit(X, y);
+
+if (tree.fitBackend_ === "js") {
+  console.warn("⚠ Using JavaScript backend (slower)");
+  console.warn("Run 'bun run native:build' for better performance");
+}
+```
+
+<Warning>
+  LinearRegression and LogisticRegression **require** native kernels and will throw an error if they're unavailable.
+</Warning>
+
+## Development
+
+### Building from Source
+
+For development, build kernels in debug mode:
+
+```bash
+# Debug build with symbols
+zig build -Doptimize=Debug
+
+# Release build (production)
+zig build -Doptimize=ReleaseFast
+```
+
+### Testing Native Backend
+
+```bash
+# Run tests with native backend
+bun test
+
+# Run tests without native backend
+BUN_SCIKIT_ENABLE_ZIG=0 bun test
+
+# Run specific backend tests
+bun test test/zig-backend-guard.test.ts
+```
+
+### Profiling
+
+Profile native kernel performance:
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+const X = Array.from({ length: 10000 }, (_, i) => [i, i * 2]);
+const y = X.map(([x]) => x * 3 + 5);
+
+const model = new LinearRegression();
+
+console.time("fit");
+model.fit(X, y);
+console.timeEnd("fit");
+
+console.time("predict");
+const predictions = model.predict(X);
+console.timeEnd("predict");
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Build kernels once">
+    Run `bun run native:build` after installation or upgrades.
+  </Step>
+  
+  <Step title="Verify acceleration">
+    Check `fitBackend_` attribute to ensure native backend is active.
+  </Step>
+  
+  <Step title="Use in production">
+    Deploy with prebuilt binaries or build during CI/CD.
+  </Step>
+  
+  <Step title="Monitor performance">
+    Compare training times with and without native acceleration.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Linear Models" icon="chart-line" href="/guides/linear-models">
+    Use native LinearRegression and LogisticRegression
+  </Card>
+  <Card title="Tree Ensembles" icon="trees" href="/guides/tree-ensembles">
+    Accelerate RandomForest training
+  </Card>
+</CardGroup>

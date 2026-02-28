@@ -1,0 +1,221 @@
+---
+title: "Performance Benchmarks"
+description: "Comprehensive benchmarks comparing bun-scikit with Python's scikit-learn"
+---
+
+## Overview
+
+bun-scikit delivers significant performance improvements over Python's scikit-learn while maintaining numerical accuracy. Our benchmarks measure real-world workloads using the Heart Disease dataset with 1,025 samples and 13 features.
+
+<Note>
+All benchmarks are automated in CI and the results shown below are from actual benchmark runs. Dataset: `test_data/heart.csv` with 80/20 train/test split.
+</Note>
+
+## Performance Summary
+
+Based on the latest CI benchmark snapshot (2026-02-25):
+
+- **Regression**: 2.2x faster fit, 2.4x faster predict
+- **Classification**: 2.5x faster fit, 2.6x faster predict  
+- **DecisionTree**: 1.6x faster fit, 4.4x faster predict
+- **RandomForest**: 6.4x faster fit, 3.9x faster predict
+
+<Warning>
+Performance gains are hardware and dataset dependent. Your results may vary based on CPU architecture, data size, and workload characteristics.
+</Warning>
+
+## Regression Benchmarks
+
+### LinearRegression Performance
+
+Pipeline: `StandardScaler + LinearRegression(normal)`
+
+| Metric | bun-scikit | scikit-learn | Speedup |
+|--------|-----------|--------------|----------|
+| Fit time (median) | 0.176 ms | 0.389 ms | **2.20x** |
+| Predict time (median) | 0.019 ms | 0.045 ms | **2.43x** |
+| MSE | 0.117545 | 0.117545 | identical |
+| R² Score | 0.529539 | 0.529539 | identical |
+
+**Key Observations:**
+- Over 2x faster training with native Zig acceleration
+- Numerically identical results (MSE delta: 6.4e-14)
+- Faster predictions with optimized TypeScript runtime
+
+## Classification Benchmarks
+
+### LogisticRegression Performance
+
+Pipeline: `StandardScaler + LogisticRegression(gd,zig)`
+
+| Metric | bun-scikit | scikit-learn | Speedup |
+|--------|-----------|--------------|----------|
+| Fit time (median) | 0.528 ms | 1.293 ms | **2.45x** |
+| Predict time (median) | 0.032 ms | 0.083 ms | **2.60x** |
+| Accuracy | 0.8634 | 0.8634 | identical |
+| F1 Score | 0.8761 | 0.8750 | +0.001 |
+
+**Key Observations:**
+- Native Zig gradient descent implementation provides 2.5x speedup
+- Equivalent accuracy with minimal F1 score variance
+- Both fit and predict operations are significantly faster
+
+## Tree-Based Model Benchmarks
+
+### DecisionTreeClassifier Performance
+
+Configuration: `maxDepth=8`
+
+| Implementation | Fit time | Predict time | Accuracy | F1 Score |
+|---------------|----------|--------------|----------|----------|
+| bun-scikit (js-fast) | 0.834 ms | 0.021 ms | 0.9463 | 0.9488 |
+| scikit-learn | 1.371 ms | 0.093 ms | 0.9317 | 0.9340 |
+| **Speedup** | **1.64x** | **4.44x** | - | - |
+
+### RandomForestClassifier Performance
+
+Configuration: `nEstimators=80, maxDepth=8`
+
+| Implementation | Fit time | Predict time | Accuracy | F1 Score |
+|---------------|----------|--------------|----------|----------|
+| bun-scikit (js-fast) | 31.22 ms | 1.76 ms | 0.9902 | 0.9906 |
+| scikit-learn | 199.63 ms | 6.93 ms | 0.9951 | 0.9953 |
+| **Speedup** | **6.40x** | **3.92x** | - | - |
+
+**Key Observations:**
+- Random forests show the largest speedup (6.4x for training)
+- Highly competitive accuracy with minimal delta
+- Prediction is consistently 4-5x faster across tree models
+
+## Zig vs JavaScript Backend Comparison
+
+bun-scikit supports both native Zig and optimized JavaScript backends for tree models.
+
+<Accordion title="DecisionTree Backend Performance">
+
+| Backend | Fit time | Predict time | Accuracy | F1 Score |
+|---------|----------|--------------|----------|----------|
+| js-fast | 0.834 ms | 0.021 ms | 0.9463 | 0.9488 |
+| zig-tree | 0.458 ms | 0.034 ms | 0.8927 | 0.8991 |
+| scikit-learn | 1.371 ms | 0.093 ms | 0.9317 | 0.9340 |
+
+**Zig vs JS speedup:**
+- Fit: 1.82x faster
+- Predict: 0.62x (JS is faster for small datasets)
+
+</Accordion>
+
+<Accordion title="RandomForest Backend Performance">
+
+| Backend | Fit time | Predict time | Accuracy | F1 Score |
+|---------|----------|--------------|----------|----------|
+| js-fast | 31.22 ms | 1.76 ms | 0.9902 | 0.9906 |
+| zig-tree | 11.78 ms | 0.78 ms | 0.9951 | 0.9953 |
+| scikit-learn | 199.63 ms | 6.93 ms | 0.9951 | 0.9953 |
+
+**Zig vs JS speedup:**
+- Fit: 2.65x faster
+- Predict: 2.26x faster
+
+</Accordion>
+
+<Note>
+The Zig backend (`BUN_SCIKIT_TREE_BACKEND=zig`) is the default for tree models. For small datasets, the JS backend may be faster for predictions due to lower overhead.
+</Note>
+
+## Running Benchmarks
+
+### Local Benchmarks
+
+```bash
+# Run complete benchmark suite
+bun run bench
+
+# Generate CI-style snapshot
+bun run bench:ci
+
+# Generate snapshot with native Zig kernels
+bun run bench:ci:native
+
+# Classification benchmarks only
+bun run bench:heart:classification
+
+# Tree model benchmarks
+bun run bench:heart:tree
+```
+
+### Hot-Path Benchmarks
+
+Compare JS vs Zig backends on synthetic data:
+
+```bash
+# Run hot-path benchmark
+bun run bench:hotpaths
+
+# Verify against baseline (CI regression check)
+bun run bench:hotpaths:check
+```
+
+### Python Dependencies
+
+To run comparison benchmarks against scikit-learn:
+
+```bash
+python -m pip install -r bench/python/requirements.txt
+```
+
+## Benchmark Methodology
+
+<Accordion title="Dataset Details">
+
+- **Source**: `test_data/heart.csv`
+- **Samples**: 1,025
+- **Features**: 13
+- **Split**: 80/20 train/test (deterministic, `randomState=42`)
+- **Target**: Binary classification for heart disease presence
+
+</Accordion>
+
+<Accordion title="Measurement Process">
+
+1. Both implementations use identical data preprocessing
+2. Timing measurements use median of multiple runs
+3. Fit time includes model training only (excludes data loading)
+4. Predict time measures inference on test set
+5. Metrics calculated using identical test samples
+
+</Accordion>
+
+<Accordion title="CI Automation">
+
+Benchmarks run automatically in GitHub Actions:
+
+- `CI` workflow: Runs on every push/PR
+- `Benchmark Snapshot` workflow: Scheduled updates
+- Results published to `bench/results/heart-ci-latest.json`
+- README table auto-updated with latest results
+
+</Accordion>
+
+## Numerical Accuracy
+
+All benchmarks verify numerical parity with scikit-learn:
+
+- **Regression**: MSE delta < 1e-13, R² delta < 1e-12
+- **Classification**: Accuracy matches exactly, F1 delta < 0.002
+- **Tree models**: Competitive accuracy with deterministic splits
+
+<Note>
+Minor accuracy differences in tree models are expected due to different tie-breaking strategies and floating-point precision handling.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Native Runtime" icon="bolt" href="/performance/native-runtime">
+    Learn about prebuilt binaries and Zig acceleration
+  </Card>
+  <Card title="Optimization Tips" icon="gauge-high" href="/performance/optimization-tips">
+    Maximize performance in your applications
+  </Card>
+</CardGroup>

@@ -1,0 +1,365 @@
+---
+title: 'OPTICS'
+description: 'Ordering Points To Identify the Clustering Structure'
+---
+
+## Overview
+
+OPTICS (Ordering Points To Identify the Clustering Structure) is a density-based clustering algorithm similar to DBSCAN but produces an ordering of the database that represents its density-based clustering structure. It can identify clusters with varying densities.
+
+## Constructor
+
+```typescript
+new OPTICS(options?: OPTICSOptions)
+```
+
+### Parameters
+
+<ParamField path="options" type="OPTICSOptions" default="{}">
+  Configuration options for OPTICS clustering
+  
+  <Expandable title="properties">
+    <ParamField path="minSamples" type="number" default="5">
+      Minimum number of samples in a neighborhood for a point to be considered a core point. Must be an integer >= 2.
+    </ParamField>
+    
+    <ParamField path="maxEps" type="number" default="Infinity">
+      Maximum distance between two samples for them to be considered neighbors. Must be > 0 or Infinity.
+    </ParamField>
+    
+    <ParamField path="eps" type="number" optional>
+      Distance threshold for extracting clusters using DBSCAN method. If not provided, automatically determined from data.
+    </ParamField>
+    
+    <ParamField path="clusterMethod" type="OPTICSClusterMethod" default="dbscan">
+      Method for extracting clusters from reachability plot. Options:
+      - `"dbscan"`: DBSCAN-style extraction with eps threshold
+      - `"xi"`: Xi-steep method (currently uses DBSCAN fallback)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the OPTICS model to the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where rows are samples and columns are features. Must be non-empty with consistent row sizes and finite values.
+</ParamField>
+
+**Returns:** The fitted OPTICS instance (for method chaining).
+
+**Throws:** Error if minSamples exceeds sample count or data validation fails.
+
+### fitPredict
+
+Fit the model and return cluster labels for training data.
+
+```typescript
+fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and predict on.
+</ParamField>
+
+**Returns:** Vector of cluster labels. Valid clusters are labeled 0, 1, 2, etc. Noise points are labeled -1.
+
+## Properties
+
+<ParamField path="labels_" type="Vector | null">
+  Cluster labels for each sample. Label -1 indicates noise points.
+</ParamField>
+
+<ParamField path="ordering_" type="Vector | null">
+  Indices of samples in the order they were processed (cluster ordering).
+</ParamField>
+
+<ParamField path="reachability_" type="Vector | null">
+  Reachability distance for each sample in the ordering. Infinity indicates no reachability.
+</ParamField>
+
+<ParamField path="coreDistances_" type="Vector | null">
+  Core distance for each sample (distance to the minSamples-th nearest neighbor).
+</ParamField>
+
+<ParamField path="predecessor_" type="Vector | null">
+  Index of the predecessor sample for each point in the ordering. -1 indicates no predecessor.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fitting.
+</ParamField>
+
+## Examples
+
+### Basic Usage
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+const X = [
+  [1, 2], [1.5, 1.8], [1.2, 2.1],
+  [8, 8], [8.1, 8.2], [7.9, 8.1],
+  [20, 20]  // Outlier
+];
+
+// Create and fit OPTICS model
+const optics = new OPTICS({
+  minSamples: 2,
+  maxEps: 2.0
+});
+
+optics.fit(X);
+
+console.log('Cluster labels:', optics.labels_);
+console.log('Reachability distances:', optics.reachability_);
+console.log('Core distances:', optics.coreDistances_);
+```
+
+### Analyzing Reachability Plot
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+const data = [
+  [1, 2], [1.5, 1.8], [1.2, 2.1],  // Dense cluster
+  [5, 5], [5.5, 5.2],              // Medium density cluster
+  [10, 10]                          // Sparse point
+];
+
+const optics = new OPTICS({
+  minSamples: 2,
+  maxEps: 10.0
+});
+
+optics.fit(data);
+
+// Analyze reachability plot
+optics.ordering_!.forEach((idx, position) => {
+  const reach = optics.reachability_![idx];
+  const core = optics.coreDistances_![idx];
+  console.log(`Position ${position}: Sample ${idx}, Reach=${reach.toFixed(2)}, Core=${core.toFixed(2)}`);
+});
+
+// Valleys in reachability plot indicate clusters
+```
+
+### Variable Density Clusters
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+// Create clusters with different densities
+const denseCLuster = [
+  [1, 1], [1.1, 1.1], [1.2, 1.0], [0.9, 1.1]
+];
+
+const sparseCLuster = [
+  [10, 10], [12, 11], [11, 13], [13, 12]
+];
+
+const data = [...denseCLuster, ...sparseCLuster];
+
+const optics = new OPTICS({
+  minSamples: 2,
+  maxEps: 5.0
+});
+
+optics.fit(data);
+
+console.log('Labels:', optics.labels_);
+// OPTICS can handle varying densities better than DBSCAN
+```
+
+### Custom Epsilon for Extraction
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8], [8, 8]
+];
+
+// Compute ordering without fixed eps
+const optics1 = new OPTICS({
+  minSamples: 2,
+  maxEps: 10.0
+  // eps not specified - auto-determined
+});
+optics1.fit(X);
+console.log('Auto eps labels:', optics1.labels_);
+
+// Use specific eps for cluster extraction
+const optics2 = new OPTICS({
+  minSamples: 2,
+  maxEps: 10.0,
+  eps: 2.0  // Explicit threshold
+});
+optics2.fit(X);
+console.log('eps=2.0 labels:', optics2.labels_);
+```
+
+### Outlier Detection
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+const measurements = [
+  [10, 20], [11, 21], [10.5, 19.5],  // Normal
+  [12, 22], [9, 20],                  // Normal
+  [50, 50],                           // Anomaly
+  [11, 19.5], [10.2, 20.5]           // Normal
+];
+
+const optics = new OPTICS({
+  minSamples: 3,
+  maxEps: 5.0
+});
+
+optics.fit(measurements);
+
+// Points with label -1 are outliers
+const outliers = measurements.filter((_, idx) => optics.labels_![idx] === -1);
+console.log('Detected outliers:', outliers);
+```
+
+### Understanding Core vs Reachability Distance
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+const points = [
+  [0, 0],   // Center of cluster
+  [1, 0],   // Close neighbor
+  [0, 1],   // Close neighbor
+  [10, 10]  // Distant point
+];
+
+const optics = new OPTICS({
+  minSamples: 2,
+  maxEps: 15.0
+});
+
+optics.fit(points);
+
+points.forEach((point, idx) => {
+  const core = optics.coreDistances_![idx];
+  const reach = optics.reachability_![idx];
+  console.log(`Point ${idx} [${point}]:`);
+  console.log(`  Core distance: ${Number.isFinite(core) ? core.toFixed(2) : 'Inf'}`);
+  console.log(`  Reachability: ${Number.isFinite(reach) ? reach.toFixed(2) : 'Inf'}`);
+});
+
+// Core distance: distance to minSamples-th neighbor
+// Reachability: max(core distance of predecessor, distance to predecessor)
+```
+
+### Hierarchical Cluster Structure
+
+```typescript
+import { OPTICS } from 'bun-scikit';
+
+// Three hierarchical clusters
+const data = [
+  // Sub-cluster 1a
+  [1, 1], [1.1, 1.1],
+  // Sub-cluster 1b
+  [2, 2], [2.1, 2.1],
+  // Cluster 2 (separate)
+  [10, 10], [10.1, 10.1]
+];
+
+const optics = new OPTICS({
+  minSamples: 2,
+  maxEps: 5.0
+});
+
+optics.fit(data);
+
+// The reachability plot reveals hierarchical structure
+console.log('Ordering:', optics.ordering_);
+console.log('Reachability:', optics.reachability_);
+// Peaks in reachability indicate cluster boundaries
+```
+
+## Algorithm Details
+
+OPTICS produces a cluster ordering and reachability distances:
+
+1. **Initialization**:
+   - Compute core distances (distance to minSamples-th neighbor)
+   - Initialize all reachability distances to infinity
+
+2. **Main Loop**:
+   - Select unprocessed point with smallest reachability
+   - Add to ordering
+   - For each unprocessed neighbor within maxEps:
+     - Update reachability = max(core distance, distance to current point)
+     - Track predecessor for dendrogram
+
+3. **Cluster Extraction**:
+   - Apply threshold (eps) to reachability plot
+   - Or use xi method to detect steep areas
+
+## Key Concepts
+
+**Core Distance**: Minimum radius needed to have minSamples neighbors
+```
+core_dist(p) = distance to minSamples-th nearest neighbor
+```
+
+**Reachability Distance**: How "reachable" a point is from another
+```
+reach_dist(p, q) = max(core_dist(q), dist(p, q))
+```
+
+**Cluster Ordering**: Process order that groups similar points together
+
+## Advantages
+
+- Detects clusters with varying densities
+- No need to specify eps beforehand
+- Produces cluster hierarchy information
+- Robust to parameter choices
+- Effective for exploratory analysis
+
+## Considerations
+
+- Time complexity: O(n²) with pairwise distances
+- Space complexity: O(n²) for distance matrix
+- Requires cluster extraction step
+- Can be sensitive to minSamples choice
+
+## Differences from DBSCAN
+
+| Feature | DBSCAN | OPTICS |
+|---------|--------|--------|
+| Epsilon | Fixed, required | Can vary, optional |
+| Density | Single density | Multiple densities |
+| Output | Flat clustering | Ordering + hierarchy |
+| Flexibility | Less flexible | More flexible |
+| Speed | Faster | Slower |
+
+## Parameter Selection Guide
+
+**minSamples**:
+- Minimum: 2
+- Rule of thumb: 2 × dimensions
+- Larger values → more noise points, denser clusters
+
+**maxEps**:
+- Acts as computational limit
+- Can set to infinity for full analysis
+- Smaller values → faster computation
+
+**eps** (extraction):
+- Experiment with reachability plot first
+- Choose threshold at valley bottoms
+- Can extract multiple clusterings at different eps values

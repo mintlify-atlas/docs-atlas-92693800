@@ -1,0 +1,129 @@
+---
+title: CalibratedClassifierCV
+description: Probability calibration with cross-validation
+---
+
+## Overview
+
+CalibratedClassifierCV calibrates predicted probabilities of a base classifier using cross-validation. It supports sigmoid (Platt scaling) and isotonic regression calibration methods.
+
+## Constructor
+
+```typescript
+new CalibratedClassifierCV(baseEstimator, options?)
+```
+
+### Parameters
+
+<ParamField path="baseEstimator" type="Classifier" required>
+  Base classifier to calibrate. Must support fit() and predict() methods.
+</ParamField>
+
+<ParamField path="options.cv" type="number" default="5">
+  Number of cross-validation folds.
+</ParamField>
+
+<ParamField path="options.method" type="'sigmoid' | 'isotonic'" default="'sigmoid'">
+  Calibration method:
+  - `sigmoid`: Platt scaling (assumes sigmoid relationship)
+  - `isotonic`: Isotonic regression (non-parametric, more flexible)
+</ParamField>
+
+<ParamField path="options.ensemble" type="boolean" default="true">
+  If true, uses all CV calibrators as an ensemble. If false, uses only one calibrator.
+</ParamField>
+
+<ParamField path="options.randomState" type="number">
+  Random seed for reproducible cross-validation splits.
+</ParamField>
+
+## Methods
+
+### fit()
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+Fit the calibrated model using cross-validation.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values.
+</ParamField>
+
+<ParamField path="sampleWeight" type="Vector">
+  Sample weights.
+</ParamField>
+
+### predict()
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+Predict class labels.
+
+### predictProba()
+
+```typescript
+predictProba(X: Matrix): Matrix
+```
+
+Predict calibrated class probabilities.
+
+### score()
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+Return accuracy score.
+
+## Properties
+
+<ParamField path="classes_" type="Vector | null">
+  Unique class labels.
+</ParamField>
+
+## Examples
+
+### Basic calibration
+
+```typescript
+import { LogisticRegression, CalibratedClassifierCV } from "bun-scikit";
+
+const baseModel = new LogisticRegression();
+const calibrated = new CalibratedClassifierCV(baseModel, {
+  cv: 5,
+  method: "sigmoid"
+});
+
+calibrated.fit(XTrain, yTrain);
+const proba = calibrated.predictProba(XTest);
+```
+
+### Isotonic calibration
+
+```typescript
+import { RandomForestClassifier, CalibratedClassifierCV } from "bun-scikit";
+
+const rf = new RandomForestClassifier({ nEstimators: 100 });
+const calibrated = new CalibratedClassifierCV(rf, {
+  method: "isotonic",
+  cv: 3
+});
+
+calibrated.fit(XTrain, yTrain);
+const calibratedProba = calibrated.predictProba(XTest);
+```
+
+## Notes
+
+- Use sigmoid calibration when you expect a sigmoid-shaped calibration curve
+- Use isotonic calibration for more flexible non-parametric calibration
+- Isotonic calibration requires more training data to avoid overfitting
+- Ensemble mode (default) averages predictions from all CV folds for better stability

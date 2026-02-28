@@ -1,0 +1,114 @@
+---
+title: Introduction
+description: Scikit-learn-inspired machine learning for Bun + TypeScript, with native Zig acceleration
+---
+
+# Welcome to bun-scikit
+
+A scikit-learn-inspired machine learning library for Bun and TypeScript, with native Zig acceleration for core training paths.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running with your first model in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install bun-scikit and configure native acceleration
+  </Card>
+  <Card title="API Reference" icon="code" href="/api">
+    Browse the complete API documentation
+  </Card>
+  <Card title="Examples" icon="flask" href="/examples">
+    Explore real-world use cases and code samples
+  </Card>
+</CardGroup>
+
+## Why bun-scikit?
+
+<CardGroup cols={3}>
+  <Card title="Fast" icon="bolt">
+    Native Zig acceleration delivers **2-6x** faster training compared to scikit-learn
+  </Card>
+  <Card title="Familiar API" icon="python">
+    Drop-in replacement for scikit-learn with the same patterns and methods
+  </Card>
+  <Card title="Type-Safe" icon="shield-check">
+    Full TypeScript support with comprehensive type definitions
+  </Card>
+</CardGroup>
+
+## Performance Highlights
+
+<Note>
+  These benchmarks are from the heart disease dataset (1025 samples, 13 features) comparing bun-scikit to scikit-learn.
+</Note>
+
+- **Regression**: 2.2x faster fit, 2.4x faster predict
+- **Classification**: 2.5x faster fit, 2.6x faster predict
+- **Random Forest**: 6.4x faster fit, 3.9x faster predict
+- **Decision Tree**: 1.6x faster fit, 4.4x faster predict
+
+With Zig backend enabled, Random Forest achieves 2.7x speedup over the JavaScript implementation.
+
+## Comprehensive ML Toolkit
+
+bun-scikit provides a complete machine learning ecosystem:
+
+### Supervised Learning
+
+- **Linear Models**: `LinearRegression`, `LogisticRegression`, `Ridge`, `Lasso`, `ElasticNet`, `SGDClassifier`, `SGDRegressor`
+- **Tree-Based**: `DecisionTreeClassifier`, `DecisionTreeRegressor`, `RandomForestClassifier`, `RandomForestRegressor`
+- **Ensemble Methods**: `AdaBoostClassifier`, `GradientBoostingClassifier`, `HistGradientBoostingClassifier`, `VotingClassifier`, `StackingClassifier`, `BaggingClassifier`
+- **Neighbors**: `KNeighborsClassifier`, `KNeighborsRegressor`, `RadiusNeighborsClassifier`
+- **SVM**: `SVC`, `SVR`, `LinearSVC`, `NuSVC`, `NuSVR`, `OneClassSVM`
+- **Naive Bayes**: `GaussianNB`
+- **Neural Networks**: `MLPClassifier`, `MLPRegressor`
+
+### Unsupervised Learning
+
+- **Clustering**: `KMeans`, `DBSCAN`, `AgglomerativeClustering`, `SpectralClustering`, `Birch`, `OPTICS`
+- **Dimensionality Reduction**: `PCA`, `TruncatedSVD`, `FastICA`, `NMF`, `KernelPCA`, `SparsePCA`
+- **Manifold Learning**: `TSNE`, `Isomap`, `LocallyLinearEmbedding`, `MDS`
+- **Anomaly Detection**: `IsolationForest`, `LocalOutlierFactor`, `OneClassSVM`
+
+### Preprocessing & Feature Engineering
+
+- **Scalers**: `StandardScaler`, `MinMaxScaler`, `RobustScaler`, `MaxAbsScaler`, `Normalizer`, `QuantileTransformer`, `PowerTransformer`
+- **Encoders**: `LabelEncoder`, `OneHotEncoder`, `OrdinalEncoder`
+- **Feature Selection**: `VarianceThreshold`, `SelectKBest`, `SelectPercentile`, `RFE`, `RFECV`
+- **Imputation**: `SimpleImputer`, `KNNImputer`, `IterativeImputer`
+- **Transformers**: `PolynomialFeatures`, `Binarizer`, `KBinsDiscretizer`
+
+### Model Selection & Evaluation
+
+- **Cross-Validation**: `crossValScore`, `crossValidate`, `crossValPredict`, `KFold`, `StratifiedKFold`, `GroupKFold`
+- **Hyperparameter Tuning**: `GridSearchCV`, `RandomizedSearchCV`
+- **Metrics**: Comprehensive regression, classification, and clustering metrics
+- **Pipelines**: `Pipeline`, `ColumnTransformer`, `FeatureUnion`
+
+## Native Acceleration
+
+bun-scikit includes prebuilt Zig binaries for:
+
+<Tabs>
+  <Tab title="Linux">
+    Prebuilt binaries included for `linux-x64`
+  </Tab>
+  <Tab title="Windows">
+    Prebuilt binaries included for `windows-x64`
+  </Tab>
+  <Tab title="macOS">
+    macOS prebuilt binaries coming soon
+  </Tab>
+</Tabs>
+
+<Warning>
+  No additional build steps or `bun pm trust` required for standard installations.
+</Warning>
+
+## Get Started
+
+Ready to build your first model? Head over to the [Quick Start](/quickstart) guide to train your first model in under 5 minutes.
+
+```bash
+bun add bun-scikit
+```

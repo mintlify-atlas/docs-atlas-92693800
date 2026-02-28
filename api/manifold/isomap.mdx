@@ -1,0 +1,122 @@
+---
+title: Isomap
+description: Isometric Mapping for non-linear dimensionality reduction
+---
+
+## Overview
+
+Isomap (Isometric Mapping) performs non-linear dimensionality reduction by preserving geodesic distances between points. It builds a neighborhood graph and uses graph distances to approximate manifold structure.
+
+## Constructor
+
+```typescript
+new Isomap(options?: IsomapOptions)
+```
+
+<ParamField path="options" type="IsomapOptions">
+  Configuration options for Isomap
+  
+  <Expandable title="properties">
+    <ParamField path="nNeighbors" type="number" default="5" optional>
+      Number of neighbors to consider for each point in the neighborhood graph.
+    </ParamField>
+    
+    <ParamField path="nComponents" type="number" default="2" optional>
+      Number of dimensions in the embedding space.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute the Isomap embedding from training data.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** The fitted Isomap instance
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and return the embedding.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Embedded data of shape [nSamples, nComponents]
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Transform new data using the fitted model (out-of-sample extension).
+
+<ParamField path="X" type="Matrix" required>
+  New data to transform of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Embedded data of shape [nSamples, nComponents]
+
+## Properties
+
+<ParamField path="embedding_" type="Matrix | null">
+  Embedded coordinates in low-dimensional space, shape [nSamples, nComponents]
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit
+</ParamField>
+
+## Example
+
+```typescript
+import { Isomap } from '@elucidate/elucidate';
+
+// Swiss roll or other manifold data
+const data = [
+  [1.0, 2.0, 1.5],
+  [1.1, 2.1, 1.6],
+  [2.0, 3.0, 2.5],
+  [2.1, 3.1, 2.6],
+  [3.0, 4.0, 3.5],
+  [3.1, 4.1, 3.6],
+];
+
+const isomap = new Isomap({ 
+  nNeighbors: 3,
+  nComponents: 2 
+});
+
+const embedding = isomap.fitTransform(data);
+console.log('Embedded coordinates:', embedding);
+
+// Transform new points
+const newData = [
+  [1.5, 2.5, 2.0],
+  [2.5, 3.5, 3.0],
+];
+
+const newEmbedding = isomap.transform(newData);
+console.log('New points embedded:', newEmbedding);
+```
+
+## Notes
+
+- Isomap assumes data lies on a smooth, low-dimensional manifold
+- Works best when the neighborhood graph is connected
+- The algorithm uses Floyd-Warshall to compute geodesic distances
+- Out-of-sample extension uses weighted averaging of nearest training points

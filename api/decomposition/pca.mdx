@@ -1,0 +1,145 @@
+---
+title: PCA
+description: Principal Component Analysis for dimensionality reduction
+---
+
+## Overview
+
+PCA (Principal Component Analysis) performs linear dimensionality reduction using eigendecomposition of the covariance matrix. It projects data onto orthogonal axes that capture maximum variance.
+
+## Constructor
+
+```typescript
+new PCA(options?: PCAOptions)
+```
+
+<ParamField path="options" type="PCAOptions">
+  Configuration options for PCA
+  
+  <Expandable title="properties">
+    <ParamField path="nComponents" type="number" optional>
+      Number of components to keep. If not set, all components are kept.
+    </ParamField>
+    
+    <ParamField path="whiten" type="boolean" default="false" optional>
+      When true, components are divided by the square root of explained variance to ensure unit component-wise variance.
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-12" optional>
+      Convergence tolerance for eigenvalue decomposition.
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="10000" optional>
+      Maximum iterations for eigenvalue decomposition.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute principal components from training data.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** The fitted PCA instance
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Project data onto principal components.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and transform data in one step.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### inverseTransform
+
+```typescript
+inverseTransform(X: Matrix): Matrix
+```
+
+Reconstruct original data from transformed components.
+
+<ParamField path="X" type="Matrix" required>
+  Transformed data of shape [nSamples, nComponents]
+</ParamField>
+
+**Returns:** Reconstructed data of shape [nSamples, nFeatures]
+
+## Properties
+
+<ParamField path="components_" type="Matrix | null">
+  Principal axes in feature space, shape [nComponents, nFeatures]
+</ParamField>
+
+<ParamField path="explainedVariance_" type="Vector | null">
+  Amount of variance explained by each component
+</ParamField>
+
+<ParamField path="explainedVarianceRatio_" type="Vector | null">
+  Percentage of variance explained by each component
+</ParamField>
+
+<ParamField path="singularValues_" type="Vector | null">
+  Singular values corresponding to each component
+</ParamField>
+
+<ParamField path="mean_" type="Vector | null">
+  Per-feature mean of training data
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit
+</ParamField>
+
+## Example
+
+```typescript
+import { PCA } from '@elucidate/elucidate';
+
+const data = [
+  [2.5, 2.4],
+  [0.5, 0.7],
+  [2.2, 2.9],
+  [1.9, 2.2],
+  [3.1, 3.0],
+];
+
+const pca = new PCA({ nComponents: 1 });
+pca.fit(data);
+
+const transformed = pca.transform(data);
+console.log('Transformed:', transformed);
+console.log('Explained variance ratio:', pca.explainedVarianceRatio_);
+
+// Reconstruct original data
+const reconstructed = pca.inverseTransform(transformed);
+console.log('Reconstructed:', reconstructed);
+```

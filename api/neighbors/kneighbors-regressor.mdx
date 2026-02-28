@@ -1,0 +1,219 @@
+---
+title: 'KNeighborsRegressor'
+description: 'K-Nearest Neighbors regressor for regression tasks'
+---
+
+## Overview
+
+The `KNeighborsRegressor` implements k-nearest neighbors regression. It predicts the value of a sample based on the average (or weighted average) of the values of its k nearest neighbors in the training set.
+
+## Constructor
+
+```typescript
+import { KNeighborsRegressor } from '@scikitjs/sklearn';
+
+const regressor = new KNeighborsRegressor({
+  nNeighbors: 5,
+  weights: 'uniform'
+});
+```
+
+### Parameters
+
+<ParamField path="nNeighbors" type="number" default={5}>
+  Number of neighbors to use for regression. Must be a positive integer.
+</ParamField>
+
+<ParamField path="weights" type="'uniform' | 'distance'" default="uniform">
+  Weight function used in prediction:
+  - `'uniform'`: All neighbors are weighted equally
+  - `'distance'`: Neighbors are weighted by the inverse of their distance (closer neighbors have more influence)
+</ParamField>
+
+## Methods
+
+### fit()
+
+Fit the k-nearest neighbors regressor from the training dataset.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a feature.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (continuous values) for the training data.
+</ParamField>
+
+<ParamField path="sampleWeight" type="Vector">
+  Sample weights (currently not implemented but reserved for future use).
+</ParamField>
+
+**Returns:** `this` - The fitted regressor instance.
+
+**Throws:**
+- Error if `nNeighbors` exceeds the training set size
+- Error if input validation fails
+
+### predict()
+
+Predict the target values for the provided data.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples to predict.
+</ParamField>
+
+**Returns:** `Vector` - Predicted values.
+
+### score()
+
+Return the coefficient of determination (R²) of the prediction.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  True values for the test samples.
+</ParamField>
+
+**Returns:** `number` - R² score (coefficient of determination).
+
+## Examples
+
+### Basic Regression
+
+```typescript
+import { KNeighborsRegressor } from '@scikitjs/sklearn';
+
+// Training data
+const X = [
+  [0], [1], [2], [3], [4]
+];
+const y = [0, 1, 4, 9, 16]; // y = x²
+
+// Create and train regressor
+const knn = new KNeighborsRegressor({ nNeighbors: 3 });
+knn.fit(X, y);
+
+// Predict new values
+const predictions = knn.predict([[1.5], [2.5]]);
+console.log(predictions); // [2.33, 6.33] approximately
+```
+
+### Distance-Weighted Regression
+
+```typescript
+import { KNeighborsRegressor } from '@scikitjs/sklearn';
+
+// Training data with non-linear relationship
+const X = [
+  [1.0], [2.0], [3.0], [4.0], [5.0]
+];
+const y = [2.0, 4.5, 7.0, 10.0, 13.5];
+
+// Use distance weighting for better interpolation
+const knn = new KNeighborsRegressor({
+  nNeighbors: 3,
+  weights: 'distance'
+});
+knn.fit(X, y);
+
+// Predict intermediate values
+const prediction = knn.predict([[2.5]]);
+console.log(prediction); // Closer neighbors have more influence
+```
+
+### Multi-dimensional Regression
+
+```typescript
+import { KNeighborsRegressor } from '@scikitjs/sklearn';
+
+// Housing prices based on [size, bedrooms]
+const X = [
+  [1200, 2],
+  [1400, 3],
+  [1600, 3],
+  [1800, 4],
+  [2000, 4]
+];
+const y = [200000, 250000, 280000, 320000, 360000];
+
+const knn = new KNeighborsRegressor({ nNeighbors: 3 });
+knn.fit(X, y);
+
+// Predict price for new house
+const price = knn.predict([[1500, 3]]);
+console.log(`Predicted price: $${price[0]}`);
+```
+
+### Model Evaluation
+
+```typescript
+import { KNeighborsRegressor } from '@scikitjs/sklearn';
+
+// Training data
+const XTrain = [
+  [1], [2], [3], [4], [5], [6]
+];
+const yTrain = [2, 4, 6, 8, 10, 12];
+
+// Test data
+const XTest = [[2.5], [4.5]];
+const yTest = [5, 9];
+
+const knn = new KNeighborsRegressor({ nNeighbors: 2 });
+knn.fit(XTrain, yTrain);
+
+// Calculate R² score
+const r2 = knn.score(XTest, yTest);
+console.log(`R² score: ${r2}`);
+```
+
+### Comparing Uniform vs Distance Weighting
+
+```typescript
+import { KNeighborsRegressor } from '@scikitjs/sklearn';
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [1, 4, 9, 16, 25]; // y = x²
+
+// Uniform weighting
+const uniformKNN = new KNeighborsRegressor({ 
+  nNeighbors: 3,
+  weights: 'uniform'
+});
+uniformKNN.fit(X, y);
+
+// Distance weighting
+const distanceKNN = new KNeighborsRegressor({ 
+  nNeighbors: 3,
+  weights: 'distance'
+});
+distanceKNN.fit(X, y);
+
+const testPoint = [[2.5]];
+console.log('Uniform:', uniformKNN.predict(testPoint));
+console.log('Distance:', distanceKNN.predict(testPoint));
+// Distance weighting gives closer neighbors more influence
+```
+
+## Notes
+
+- Uses Euclidean distance to find nearest neighbors
+- Distance weighting uses `1 / distance` with a minimum threshold to avoid division by zero
+- If a test sample coincides exactly with a training sample (distance = 0), that training value is returned directly
+- Stores the entire training dataset (instance-based learning)
+- Prediction time scales linearly with training set size
+- Consider feature scaling when features have different units or ranges

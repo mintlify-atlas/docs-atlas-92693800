@@ -1,0 +1,500 @@
+---
+title: Model Evaluation
+description: Learn how to evaluate and measure the performance of your machine learning models
+---
+
+Evaluating your models properly is crucial for understanding their performance and making informed decisions. bun-scikit provides comprehensive metrics for both classification and regression tasks.
+
+## Overview
+
+All evaluation metrics in bun-scikit follow consistent patterns:
+
+- **Input validation** - Ensures arrays are non-empty and properly shaped
+- **Sample weighting** - Optional weights to give different importance to samples
+- **Multioutput support** - Handle multiple target variables (regression)
+- **Efficient computation** - Optimized implementations
+
+## Regression Metrics
+
+Regression metrics measure how well your model predicts continuous values.
+
+### Mean Squared Error (MSE)
+
+The average squared difference between predictions and actual values.
+
+```typescript
+import { meanSquaredError } from "bun-scikit";
+
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const mse = meanSquaredError(yTrue, yPred);
+console.log("MSE:", mse);  // 0.375
+```
+
+**Formula:** `MSE = (1/n) * Σ(yᵢ - ŷᵢ)²`
+
+<Note>
+  Lower MSE is better. MSE = 0 means perfect predictions.
+</Note>
+
+### Mean Absolute Error (MAE)
+
+The average absolute difference between predictions and actual values.
+
+```typescript
+import { meanAbsoluteError } from "bun-scikit";
+
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const mae = meanAbsoluteError(yTrue, yPred);
+console.log("MAE:", mae);  // 0.5
+```
+
+**Formula:** `MAE = (1/n) * Σ|yᵢ - ŷᵢ|`
+
+<Note>
+  MAE is less sensitive to outliers than MSE.
+</Note>
+
+### R² Score (Coefficient of Determination)
+
+Measures the proportion of variance in the target variable that's explained by the model.
+
+```typescript
+import { r2Score } from "bun-scikit";
+
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const r2 = r2Score(yTrue, yPred);
+console.log("R²:", r2);  // 0.948...
+```
+
+**Interpretation:**
+- **R² = 1.0** - Perfect predictions
+- **R² = 0.0** - Model performs as well as predicting the mean
+- **R² < 0.0** - Model performs worse than predicting the mean
+
+<Accordion title="View Implementation">
+```typescript
+// Simplified from src/metrics/regression.ts
+export function r2Score(
+  yTrue: Vector,
+  yPred: Vector,
+  options: RegressionMetricOptions = {}
+): number {
+  const weights = resolveWeights(options.sampleWeight, yTrue.length);
+  const yMean = weightedMean(yTrue, weights);
+
+  let ssRes = 0;  // Sum of squared residuals
+  let ssTot = 0;  // Total sum of squares
+  
+  for (let i = 0; i < yTrue.length; i += 1) {
+    const residual = yTrue[i] - yPred[i];
+    const centered = yTrue[i] - yMean;
+    ssRes += weights[i] * residual * residual;
+    ssTot += weights[i] * centered * centered;
+  }
+  
+  if (ssTot === 0) {
+    return ssRes === 0 ? 1 : 0;
+  }
+  return 1 - ssRes / ssTot;
+}
+```
+</Accordion>
+
+### Other Regression Metrics
+
+<Tabs>
+  <Tab title="MAPE">
+    Mean Absolute Percentage Error - measures error as a percentage.
+    
+    ```typescript
+    import { meanAbsolutePercentageError } from "bun-scikit";
+    
+    const mape = meanAbsolutePercentageError(yTrue, yPred);
+    console.log("MAPE:", mape * 100, "%");
+    ```
+    
+    Useful for understanding error relative to the scale of the target.
+  </Tab>
+  <Tab title="Explained Variance">
+    Measures the proportion of variance explained, accounting for systematic offsets.
+    
+    ```typescript
+    import { explainedVarianceScore } from "bun-scikit";
+    
+    const score = explainedVarianceScore(yTrue, yPred);
+    ```
+    
+    Similar to R² but uses variance of residuals instead of sum of squares.
+  </Tab>
+</Tabs>
+
+### Sample Weights
+
+Give different importance to different samples:
+
+```typescript
+import { meanSquaredError } from "bun-scikit";
+
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+const sampleWeight = [1, 2, 1, 3];  // Weight the 4th sample more
+
+const mse = meanSquaredError(yTrue, yPred, { sampleWeight });
+```
+
+## Classification Metrics
+
+Classification metrics evaluate how well your model predicts discrete labels.
+
+### Accuracy Score
+
+The fraction of correctly classified samples.
+
+```typescript
+import { accuracyScore } from "bun-scikit";
+
+const yTrue = [0, 1, 1, 0, 1, 1];
+const yPred = [0, 1, 0, 0, 1, 1];
+
+const accuracy = accuracyScore(yTrue, yPred);
+console.log("Accuracy:", accuracy);  // 0.8333... (5/6 correct)
+```
+
+<Note>
+  Accuracy can be misleading for imbalanced datasets. Consider precision, recall, and F1 score instead.
+</Note>
+
+### Precision, Recall, and F1 Score
+
+These metrics provide deeper insight into classification performance:
+
+<CodeGroup>
+```typescript Precision
+import { precisionScore } from "bun-scikit";
+
+const precision = precisionScore(yTrue, yPred);
+console.log("Precision:", precision);
+
+// Precision = TP / (TP + FP)
+// "Of all predicted positives, how many are actually positive?"
+```
+
+```typescript Recall
+import { recallScore } from "bun-scikit";
+
+const recall = recallScore(yTrue, yPred);
+console.log("Recall:", recall);
+
+// Recall = TP / (TP + FN)
+// "Of all actual positives, how many did we identify?"
+```
+
+```typescript F1 Score
+import { f1Score } from "bun-scikit";
+
+const f1 = f1Score(yTrue, yPred);
+console.log("F1:", f1);
+
+// F1 = 2 * (Precision * Recall) / (Precision + Recall)
+// Harmonic mean of precision and recall
+```
+</CodeGroup>
+
+### Confusion Matrix
+
+Visualize the performance of a classification model:
+
+```typescript
+import { confusionMatrix } from "bun-scikit";
+
+const yTrue = [0, 0, 1, 1, 2, 2];
+const yPred = [0, 1, 1, 1, 2, 0];
+
+const { labels, matrix } = confusionMatrix(yTrue, yPred);
+
+console.log("Labels:", labels);  // [0, 1, 2]
+console.log("Matrix:");
+console.log(matrix);
+// [[1, 1, 0],    Rows = True labels
+//  [0, 2, 0],    Columns = Predicted labels
+//  [1, 0, 1]]
+```
+
+**Reading the matrix:**
+- **Diagonal** - Correct predictions
+- **Off-diagonal** - Misclassifications
+
+### Classification Report
+
+Get a comprehensive summary of all metrics:
+
+```typescript
+import { classificationReport } from "bun-scikit";
+
+const yTrue = [0, 0, 1, 1, 2, 2];
+const yPred = [0, 1, 1, 1, 2, 0];
+
+const report = classificationReport(yTrue, yPred);
+
+console.log("Overall Accuracy:", report.accuracy);
+console.log("\nPer-class metrics:");
+for (const [label, metrics] of Object.entries(report.perLabel)) {
+  console.log(`Class ${label}:`);
+  console.log(`  Precision: ${metrics.precision.toFixed(3)}`);
+  console.log(`  Recall: ${metrics.recall.toFixed(3)}`);
+  console.log(`  F1-Score: ${metrics.f1Score.toFixed(3)}`);
+  console.log(`  Support: ${metrics.support}`);
+}
+
+console.log("\nMacro average:", report.macroAvg);
+console.log("Weighted average:", report.weightedAvg);
+```
+
+### Probability-Based Metrics
+
+<Tabs>
+  <Tab title="Log Loss">
+    Measures the performance of probability predictions.
+    
+    ```typescript
+    import { logLoss } from "bun-scikit";
+    
+    // Binary classification
+    const yTrue = [0, 1, 1, 0];
+    const yPredProba = [0.1, 0.9, 0.8, 0.3];
+    const loss = logLoss(yTrue, yPredProba);
+    
+    // Multiclass classification
+    const yTrueMulti = [0, 1, 2];
+    const yPredProbaMulti = [
+      [0.8, 0.1, 0.1],  // Predicting class 0
+      [0.1, 0.7, 0.2],  // Predicting class 1
+      [0.2, 0.1, 0.7],  // Predicting class 2
+    ];
+    const lossMulti = logLoss(yTrueMulti, yPredProbaMulti);
+    ```
+    
+    Lower log loss indicates better probability estimates.
+  </Tab>
+  <Tab title="Brier Score">
+    Measures the mean squared error of probability predictions.
+    
+    ```typescript
+    import { brierScoreLoss } from "bun-scikit";
+    
+    const yTrue = [0, 1, 1, 0];
+    const yPredProba = [0.1, 0.9, 0.8, 0.3];
+    const brier = brierScoreLoss(yTrue, yPredProba);
+    ```
+    
+    Lower is better (0 = perfect, 1 = worst).
+  </Tab>
+  <Tab title="ROC AUC">
+    Area under the ROC curve - measures ranking quality.
+    
+    ```typescript
+    import { rocAucScore } from "bun-scikit";
+    
+    const yTrue = [0, 0, 1, 1];
+    const yScore = [0.1, 0.4, 0.35, 0.8];
+    const auc = rocAucScore(yTrue, yScore);
+    ```
+    
+    **Interpretation:**
+    - 1.0 = Perfect ranking
+    - 0.5 = Random guessing
+    - < 0.5 = Worse than random
+  </Tab>
+</Tabs>
+
+### Advanced Classification Metrics
+
+<CodeGroup>
+```typescript Balanced Accuracy
+import { balancedAccuracyScore } from "bun-scikit";
+
+// Better for imbalanced datasets
+const balanced = balancedAccuracyScore(yTrue, yPred);
+// Average of recall for each class
+```
+
+```typescript Matthews Correlation Coefficient
+import { matthewsCorrcoef } from "bun-scikit";
+
+// Robust metric for binary and multiclass
+const mcc = matthewsCorrcoef(yTrue, yPred);
+// Range: -1 to +1 (0 = random, 1 = perfect)
+```
+</CodeGroup>
+
+## Clustering Metrics
+
+Evaluate unsupervised clustering algorithms:
+
+<Tabs>
+  <Tab title="Silhouette Score">
+    Measures how similar objects are to their own cluster vs. other clusters.
+    
+    ```typescript
+    import { silhouetteScore } from "bun-scikit";
+    
+    const X = [[1, 2], [2, 3], [10, 11], [11, 12]];
+    const labels = [0, 0, 1, 1];
+    
+    const score = silhouetteScore(X, labels);
+    // Range: -1 to +1 (higher is better)
+    ```
+  </Tab>
+  <Tab title="Calinski-Harabasz">
+    Ratio of between-cluster to within-cluster dispersion.
+    
+    ```typescript
+    import { calinskiHarabaszScore } from "bun-scikit";
+    
+    const score = calinskiHarabaszScore(X, labels);
+    // Higher is better
+    ```
+  </Tab>
+  <Tab title="Davies-Bouldin">
+    Average similarity ratio of each cluster with its most similar cluster.
+    
+    ```typescript
+    import { daviesBouldinScore } from "bun-scikit";
+    
+    const score = daviesBouldinScore(X, labels);
+    // Lower is better (minimum is 0)
+    ```
+  </Tab>
+</Tabs>
+
+## Model Scoring Methods
+
+All models have a built-in `score()` method:
+
+```typescript
+import { LinearRegression, LogisticRegression } from "bun-scikit";
+
+// Regression: returns R² score
+const regressor = new LinearRegression();
+regressor.fit(XTrain, yTrain);
+const r2 = regressor.score(XTest, yTest);
+
+// Classification: returns accuracy
+const classifier = new LogisticRegression();
+classifier.fit(XTrain, yTrain);
+const accuracy = classifier.score(XTest, yTest);
+```
+
+## Complete Evaluation Example
+
+Here's a complete workflow for evaluating a classification model:
+
+```typescript
+import {
+  LogisticRegression,
+  StandardScaler,
+  trainTestSplit,
+  accuracyScore,
+  precisionScore,
+  recallScore,
+  f1Score,
+  confusionMatrix,
+  classificationReport,
+  rocAucScore,
+} from "bun-scikit";
+
+// Prepare data
+const X = [
+  [0, 0], [0, 1], [1, 0], [1, 1],
+  [2, 2], [2, 3], [3, 2], [3, 3],
+];
+const y = [0, 0, 0, 1, 1, 1, 1, 1];
+
+// Split and preprocess
+const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y, {
+  testSize: 0.25,
+  randomState: 42,
+});
+
+const scaler = new StandardScaler();
+const XTrainScaled = scaler.fitTransform(XTrain);
+const XTestScaled = scaler.transform(XTest);
+
+// Train model
+const model = new LogisticRegression({ maxIter: 1000 });
+model.fit(XTrainScaled, yTrain);
+
+// Get predictions
+const yPred = model.predict(XTestScaled);
+const yPredProba = model.predictProba(XTestScaled);
+const yScore = yPredProba.map((probs) => probs[1]);  // Probability of class 1
+
+// Evaluate with multiple metrics
+console.log("=== Model Evaluation ===");
+console.log("Accuracy:", accuracyScore(yTest, yPred).toFixed(3));
+console.log("Precision:", precisionScore(yTest, yPred).toFixed(3));
+console.log("Recall:", recallScore(yTest, yPred).toFixed(3));
+console.log("F1 Score:", f1Score(yTest, yPred).toFixed(3));
+console.log("ROC AUC:", rocAucScore(yTest, yScore).toFixed(3));
+
+// Confusion matrix
+const { matrix } = confusionMatrix(yTest, yPred);
+console.log("\nConfusion Matrix:");
+console.log(matrix);
+
+// Detailed report
+const report = classificationReport(yTest, yPred);
+console.log("\n=== Classification Report ===");
+for (const [label, metrics] of Object.entries(report.perLabel)) {
+  console.log(`Class ${label}: P=${metrics.precision.toFixed(2)} R=${metrics.recall.toFixed(2)} F1=${metrics.f1Score.toFixed(2)}`);
+}
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Choose metrics appropriate for your task">
+    - **Regression**: MSE for penalty on large errors, MAE for robustness to outliers
+    - **Balanced classification**: Accuracy is sufficient
+    - **Imbalanced classification**: Precision, recall, F1, or balanced accuracy
+  </Step>
+  <Step title="Use multiple metrics">
+    No single metric tells the whole story. Combine metrics to get a complete picture:
+    
+    ```typescript
+    const report = classificationReport(yTest, yPred);
+    // Provides accuracy, precision, recall, and F1 for all classes
+    ```
+  </Step>
+  <Step title="Always evaluate on held-out test data">
+    Never evaluate on training data - it will give overly optimistic results:
+    
+    ```typescript
+    const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y);
+    model.fit(XTrain, yTrain);
+    const score = model.score(XTest, yTest);  // Correct
+    ```
+  </Step>
+  <Step title="Consider cross-validation">
+    For more robust estimates, use k-fold cross-validation:
+    
+    ```typescript
+    import { crossValScore } from "bun-scikit";
+    
+    const scores = crossValScore(model, X, y, { cv: 5 });
+    console.log("Mean accuracy:", scores.reduce((a, b) => a + b) / scores.length);
+    ```
+  </Step>
+</Steps>
+
+## Related Topics
+
+- [Model Training](/concepts/model-training) - Learn how to train models
+- [Pipelines](/concepts/pipelines) - Build evaluation into your workflow
+- [Model Selection](/guides/model-selection) - Cross-validation and hyperparameter tuning

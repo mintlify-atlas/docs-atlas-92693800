@@ -1,0 +1,362 @@
+---
+title: 'SVC'
+description: 'Support Vector Classification'
+---
+
+## Overview
+
+The `SVC` (Support Vector Classifier) implements support vector machine classification with various kernel functions. It finds the optimal hyperplane that maximizes the margin between classes.
+
+## Constructor
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+const classifier = new SVC({
+  C: 1.0,
+  kernel: 'rbf',
+  gamma: 'scale',
+  degree: 3,
+  coef0: 0,
+  maxIter: 500,
+  tolerance: 1e-6,
+  learningRate: 0.05
+});
+```
+
+### Parameters
+
+<ParamField path="C" type="number" default={1.0}>
+  Regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive. Larger values allow more violations of the margin.
+</ParamField>
+
+<ParamField path="kernel" type="'linear' | 'poly' | 'rbf' | 'sigmoid'" default="rbf">
+  Kernel type to be used:
+  - `'linear'`: Linear kernel
+  - `'poly'`: Polynomial kernel
+  - `'rbf'`: Radial basis function kernel
+  - `'sigmoid'`: Sigmoid kernel
+</ParamField>
+
+<ParamField path="gamma" type="number | 'scale' | 'auto'" default="scale">
+  Kernel coefficient:
+  - `'scale'`: `1 / (n_features * X.variance())`
+  - `'auto'`: `1 / n_features`
+  - `number`: Custom gamma value
+</ParamField>
+
+<ParamField path="degree" type="number" default={3}>
+  Degree of the polynomial kernel function. Ignored by other kernels.
+</ParamField>
+
+<ParamField path="coef0" type="number" default={0}>
+  Independent term in polynomial and sigmoid kernels.
+</ParamField>
+
+<ParamField path="maxIter" type="number" default={500}>
+  Maximum number of iterations for the optimization algorithm.
+</ParamField>
+
+<ParamField path="tolerance" type="number" default={1e-6}>
+  Tolerance for stopping criterion.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default={0.05}>
+  Learning rate for the gradient descent optimizer.
+</ParamField>
+
+## Methods
+
+### fit()
+
+Fit the SVM model according to the training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target class labels.
+</ParamField>
+
+<ParamField path="sampleWeight" type="Vector">
+  Sample weights (reserved for future use).
+</ParamField>
+
+**Returns:** `this` - The fitted classifier.
+
+### predict()
+
+Perform classification on samples.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector` - Predicted class labels.
+
+### predictProba()
+
+Compute probability estimates for samples.
+
+```typescript
+predictProba(X: Matrix): Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Matrix` - Probability estimates for each class.
+
+### decisionFunction()
+
+Evaluate the decision function for the samples.
+
+```typescript
+decisionFunction(X: Matrix): Vector | Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector | Matrix` - Decision function values. For binary classification, returns a Vector. For multi-class, returns a Matrix.
+
+### score()
+
+Return the mean accuracy on the given test data.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  True labels.
+</ParamField>
+
+**Returns:** `number` - Mean accuracy.
+
+### getParams()
+
+Get parameters for this estimator.
+
+```typescript
+getParams(): SVCOptions
+```
+
+**Returns:** `SVCOptions` - Current parameter settings.
+
+### setParams()
+
+Set parameters for this estimator.
+
+```typescript
+setParams(params: Partial<SVCOptions>): this
+```
+
+<ParamField path="params" type="Partial<SVCOptions>" required>
+  Parameters to update.
+</ParamField>
+
+**Returns:** `this` - The updated classifier.
+
+## Attributes
+
+<ParamField path="classes_" type="Vector">
+  Unique class labels.
+</ParamField>
+
+<ParamField path="supportVectors_" type="Matrix">
+  Support vectors (samples that lie on or within the margin).
+</ParamField>
+
+<ParamField path="support_" type="number[]">
+  Indices of support vectors in the training data.
+</ParamField>
+
+## Examples
+
+### Basic Binary Classification
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+// Linearly separable data
+const X = [
+  [0, 0], [1, 1], [1, 0],
+  [5, 5], [6, 6], [5, 6]
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+const svc = new SVC({ kernel: 'linear', C: 1.0 });
+svc.fit(X, y);
+
+const predictions = svc.predict([[2, 2], [5, 5]]);
+console.log(predictions); // [0, 1]
+```
+
+### RBF Kernel for Non-linear Classification
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+// Non-linearly separable data (circle pattern)
+const X = [
+  [0, 0], [0, 1], [1, 0], [1, 1],        // Inner class
+  [3, 3], [3, 4], [4, 3], [4, 4]         // Outer class
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+const svc = new SVC({ 
+  kernel: 'rbf',
+  gamma: 'scale',
+  C: 1.0
+});
+svc.fit(X, y);
+
+const predictions = svc.predict([[0.5, 0.5], [3.5, 3.5]]);
+console.log(predictions); // [0, 1]
+```
+
+### Multi-class Classification
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+// Three-class problem
+const X = [
+  [1, 1], [1, 2], [2, 1],     // Class 0
+  [5, 5], [5, 6], [6, 5],     // Class 1
+  [9, 1], [9, 2], [10, 1]     // Class 2
+];
+const y = [0, 0, 0, 1, 1, 1, 2, 2, 2];
+
+const svc = new SVC({ kernel: 'rbf' });
+svc.fit(X, y);
+
+const predictions = svc.predict([[1.5, 1.5], [5.5, 5.5], [9.5, 1.5]]);
+console.log(predictions); // [0, 1, 2]
+```
+
+### Probability Estimates
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+const X = [[0, 0], [1, 1], [2, 2], [8, 8], [9, 9], [10, 10]];
+const y = [0, 0, 0, 1, 1, 1];
+
+const svc = new SVC({ kernel: 'rbf', C: 1.0 });
+svc.fit(X, y);
+
+// Get probability estimates
+const probabilities = svc.predictProba([[1, 1], [9, 9], [5, 5]]);
+console.log(probabilities);
+// [
+//   [0.95, 0.05],  // Likely class 0
+//   [0.05, 0.95],  // Likely class 1
+//   [0.50, 0.50]   // Uncertain
+// ]
+```
+
+### Polynomial Kernel
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+const X = [
+  [1, 1], [2, 2], [3, 3],
+  [1, 3], [2, 2.5], [3, 2]
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+const svc = new SVC({ 
+  kernel: 'poly',
+  degree: 3,
+  coef0: 1,
+  C: 1.0
+});
+svc.fit(X, y);
+
+const predictions = svc.predict([[2, 2], [2, 2.5]]);
+console.log(predictions);
+```
+
+### Decision Function
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+const X = [[0, 0], [1, 1], [5, 5], [6, 6]];
+const y = [0, 0, 1, 1];
+
+const svc = new SVC({ kernel: 'linear' });
+svc.fit(X, y);
+
+// Get decision function values
+const decisionValues = svc.decisionFunction([[2, 2], [4, 4]]);
+console.log(decisionValues);
+// Negative values indicate class 0, positive values indicate class 1
+// Distance from decision boundary
+```
+
+### Tuning Regularization Parameter
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+const X = [
+  [0, 0], [0, 1], [1, 0], [1, 1],
+  [3, 3], [3, 4], [4, 3], [4, 4]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Soft margin (allows some misclassification)
+const softSVC = new SVC({ C: 0.1, kernel: 'linear' });
+softSVC.fit(X, y);
+
+// Hard margin (strict separation)
+const hardSVC = new SVC({ C: 100, kernel: 'linear' });
+hardSVC.fit(X, y);
+
+console.log('Soft margin support vectors:', softSVC.support_.length);
+console.log('Hard margin support vectors:', hardSVC.support_.length);
+```
+
+### Accessing Support Vectors
+
+```typescript
+import { SVC } from '@scikitjs/sklearn';
+
+const X = [[0, 0], [1, 1], [2, 2], [5, 5], [6, 6], [7, 7]];
+const y = [0, 0, 0, 1, 1, 1];
+
+const svc = new SVC({ kernel: 'linear' });
+svc.fit(X, y);
+
+console.log('Support vector indices:', svc.support_);
+console.log('Support vectors:', svc.supportVectors_);
+console.log('Classes:', svc.classes_);
+```
+
+## Notes
+
+- Uses a one-vs-rest strategy for multi-class classification
+- The RBF kernel is a good default choice for non-linear problems
+- Larger C values create a harder margin (less tolerance for misclassification)
+- Feature scaling is recommended for optimal performance
+- Support vectors are the critical samples that define the decision boundary
+- Computation time increases with the number of support vectors

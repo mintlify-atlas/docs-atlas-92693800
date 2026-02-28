@@ -1,0 +1,378 @@
+---
+title: "Native Runtime"
+description: "Understanding bun-scikit's native Zig acceleration and prebuilt binaries"
+---
+
+## Overview
+
+bun-scikit achieves superior performance through native Zig kernels that accelerate compute-intensive training loops. Prebuilt binaries are included in the npm package for seamless installation.
+
+<Note>
+No additional build steps or permissions (`bun pm trust`) are required for standard usage. Native binaries work out-of-the-box on supported platforms.
+</Note>
+
+## Prebuilt Binary Support
+
+The npm package includes prebuilt native binaries for:
+
+| Platform | Architecture | Binary Format | Status |
+|----------|--------------|---------------|--------|
+| Linux | x64 | `.so` | Available |
+| Windows | x64 | `.dll` | Available |
+| macOS | x64/ARM | `.dylib` | Not yet published |
+
+<Warning>
+macOS prebuilt binaries are not currently published. macOS users must build native kernels locally using `bun run native:build`.
+</Warning>
+
+## Accelerated Models
+
+The following models use native Zig kernels by default:
+
+### LinearRegression
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+const model = new LinearRegression({
+  solver: "normal", // Native Zig acceleration
+});
+
+model.fit(X, y);
+console.log(model.fitBackend_); // "zig"
+console.log(model.fitBackendLibrary_); // Path to native library
+```
+
+**Operations accelerated:**
+- `fit()` - Native matrix operations (normal equation solver)
+- `predict()` - Optimized linear algebra
+
+### LogisticRegression
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+const model = new LogisticRegression({
+  solver: "gd", // Gradient descent with Zig
+});
+
+model.fit(X, y);
+console.log(model.fitBackend_); // "zig"
+```
+
+**Operations accelerated:**
+- `fit()` - Native gradient descent implementation
+- `predict()` - Fast sigmoid and classification
+- `predictProba()` - Optimized probability computation
+
+### DecisionTreeClassifier
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const tree = new DecisionTreeClassifier({
+  maxDepth: 8,
+  randomState: 42,
+});
+
+tree.fit(X, y);
+console.log(tree.fitBackend_); // "zig" (default)
+```
+
+**Operations accelerated:**
+- `fit()` - Native tree building (Gini/entropy calculations)
+- `predict()` - Fast tree traversal
+
+<Note>
+Set `BUN_SCIKIT_TREE_BACKEND=js` to use the optimized JavaScript fallback instead of native Zig.
+</Note>
+
+### RandomForestClassifier
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+const forest = new RandomForestClassifier({
+  nEstimators: 80,
+  maxDepth: 8,
+  randomState: 42,
+});
+
+forest.fit(X, y);
+console.log(forest.fitBackend_); // "zig" (default)
+```
+
+**Operations accelerated:**
+- `fit()` - Parallel tree building with native code
+- `predict()` - Fast ensemble prediction aggregation
+
+## Native ABI Contract
+
+bun-scikit defines a stable ABI (Application Binary Interface) between JavaScript and native Zig code.
+
+### ABI Version
+
+```zig
+// Exported symbol
+bun_scikit_abi_version() -> u32
+
+// Current version: 2
+```
+
+JavaScript bridges automatically verify ABI compatibility and refuse to load mismatched versions.
+
+### Status Codes
+
+Native functions return standardized status codes:
+
+<Accordion title="Available Status Codes">
+
+- `bun_scikit_status_ok()` - Operation succeeded
+- `bun_scikit_status_invalid_handle()` - Invalid model handle
+- `bun_scikit_status_invalid_shape()` - Tensor shape mismatch
+- `bun_scikit_status_allocation_failed()` - Memory allocation error
+- `bun_scikit_status_fit_failed()` - Training failed
+- `bun_scikit_status_symbol_unavailable()` - Missing native symbol
+
+</Accordion>
+
+### Handle Lifecycle
+
+Native models use opaque handles represented as `BigInt` in JavaScript:
+
+```typescript
+// 1. Create model handle
+const handle = native.linear_regression_create(...);
+
+// 2. Use model operations
+native.linear_regression_fit(handle, X, y);
+native.linear_regression_predict(handle, X, out);
+
+// 3. Destroy handle (exactly once)
+native.linear_regression_destroy(handle);
+```
+
+<Warning>
+Model handles must be destroyed exactly once to prevent memory leaks. bun-scikit manages this automatically in model destructors.
+</Warning>
+
+### Memory Ownership
+
+Clear ownership rules prevent memory safety issues:
+
+- **Input tensors** (`x`, `y`): Caller-owned, never freed by native code
+- **Output tensors** (`out`): Caller-owned, preallocated to required size
+- **Model state**: Zig-owned, released via `*_model_destroy()`
+
+### Tensor Layout
+
+All tensors use standardized layouts:
+
+<Accordion title="Tensor Format Requirements">
+
+**Feature Matrix (`X`):**
+- Type: `Float64Array`
+- Layout: Row-major contiguous
+- Shape: `[n_samples, n_features]`
+
+**Regression Targets (`y`):**
+- Type: `Float64Array`
+- Layout: Contiguous
+- Shape: `[n_samples]`
+
+**Classification Targets (`y`):**
+- Tree/Forest: `Uint16Array` (encoded class indices, max 256 classes)
+- Logistic: `Uint8Array` (binary labels)
+- Layout: Contiguous
+
+</Accordion>
+
+## Runtime Bridges
+
+bun-scikit supports two bridge mechanisms for native code:
+
+### Node-API Bridge (Preferred)
+
+Stable C API for Node.js/Bun addon modules:
+
+- Implementation: `src/native/node-addon/bun_scikit_addon.cpp`
+- Benefits: Stable ABI, cross-runtime compatibility
+- Auto-detected when available
+
+### Bun FFI Bridge
+
+Direct FFI using `bun:ffi`:
+
+- Implementation: `src/native/zigKernels.ts`
+- Benefits: Lower overhead, Bun-specific optimizations
+- Fallback when Node-API unavailable
+
+<Note>
+The runtime automatically selects the best available bridge. You typically don't need to choose manually.
+</Note>
+
+## Environment Variables
+
+Customize native runtime behavior with environment variables:
+
+### Bridge Selection
+
+```bash
+# Force specific bridge (auto-detect by default)
+export BUN_SCIKIT_NATIVE_BRIDGE=node-api  # or "ffi"
+
+# Custom Node-API addon path
+export BUN_SCIKIT_NODE_ADDON=/path/to/bun_scikit_node_addon.node
+
+# Custom Zig library path
+export BUN_SCIKIT_ZIG_LIB=/path/to/bun_scikit_kernels.so
+```
+
+### Backend Control
+
+```bash
+# Disable all Zig acceleration (use JS fallbacks)
+export BUN_SCIKIT_ENABLE_ZIG=0
+
+# Control tree/forest backend (default: zig)
+export BUN_SCIKIT_TREE_BACKEND=zig  # or "js"
+```
+
+<Accordion title="When to Use Environment Variables">
+
+**Force JS backend:**
+- Debugging numerical differences
+- Platforms without prebuilt binaries
+- Development without building native code
+
+**Custom library paths:**
+- Testing local builds
+- Non-standard installation directories
+- CI/CD with custom artifact locations
+
+**Bridge selection:**
+- Performance testing different bridges
+- Debugging native code issues
+
+</Accordion>
+
+## Building Native Kernels
+
+### Build Zig Libraries
+
+```bash
+# Build native Zig kernels
+bun run native:build
+```
+
+Generates platform-specific binaries:
+- Linux: `dist/native/bun_scikit_kernels.so`
+- macOS: `dist/native/bun_scikit_kernels.dylib`
+- Windows: `dist/native/bun_scikit_kernels.dll`
+
+### Build Node-API Addon
+
+```bash
+# Build Node-API bridge (experimental)
+bun run native:build:node-addon
+
+# Build both Zig + Node-API
+bun run native:build:all
+```
+
+<Warning>
+Local builds are typically only needed for:
+- macOS users (no prebuilt binaries yet)
+- Development/testing
+- Unsupported platforms
+
+Linux and Windows users get prebuilt binaries automatically.
+</Warning>
+
+## Verifying Native Acceleration
+
+Check if native kernels are active:
+
+```typescript
+import { DecisionTreeClassifier, RandomForestClassifier } from "bun-scikit";
+
+const X = [
+  [0, 0],
+  [0, 1],
+  [1, 0],
+  [2, 2],
+  [2, 3],
+  [3, 2],
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+const tree = new DecisionTreeClassifier({ maxDepth: 3, randomState: 42 });
+tree.fit(X, y);
+console.log("DecisionTree backend:", tree.fitBackend_);
+console.log("Library path:", tree.fitBackendLibrary_);
+
+const forest = new RandomForestClassifier({ nEstimators: 25, maxDepth: 4, randomState: 42 });
+forest.fit(X, y);
+console.log("RandomForest backend:", forest.fitBackend_);
+console.log("Library path:", forest.fitBackendLibrary_);
+```
+
+Expected output:
+```
+DecisionTree backend: zig
+Library path: /path/to/bun_scikit_kernels.so
+RandomForest backend: zig
+Library path: /path/to/bun_scikit_kernels.so
+```
+
+<Note>
+If native kernels are unavailable, models will throw an error during `fit()` asking you to run `bun run native:build`.
+</Note>
+
+## Troubleshooting
+
+<Accordion title="Native library not found">
+
+**Problem:** `fit()` throws error about missing native library.
+
+**Solutions:**
+1. Install package: `bun add bun-scikit` (includes prebuilt binaries)
+2. Build locally: `bun run native:build`
+3. Check platform support (macOS requires local build)
+4. Verify environment variables aren't overriding paths
+
+</Accordion>
+
+<Accordion title="ABI version mismatch">
+
+**Problem:** Error about incompatible ABI version.
+
+**Solutions:**
+1. Update package: `bun update bun-scikit`
+2. Rebuild native kernels: `bun run native:build`
+3. Clear old builds: `rm -rf dist/native && bun run native:build`
+
+</Accordion>
+
+<Accordion title="Performance not as expected">
+
+**Problem:** Not seeing advertised speedups.
+
+**Solutions:**
+1. Verify native backend: Check `fitBackend_` property
+2. Try different backends: `BUN_SCIKIT_TREE_BACKEND=zig` vs `js`
+3. Check dataset size (small data may have JS overhead)
+4. Run benchmarks: `bun run bench` to compare with baseline
+
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Benchmarks" icon="chart-line" href="/performance/benchmarks">
+    See detailed performance comparisons
+  </Card>
+  <Card title="Optimization Tips" icon="gauge-high" href="/performance/optimization-tips">
+    Learn how to maximize performance
+  </Card>
+</CardGroup>

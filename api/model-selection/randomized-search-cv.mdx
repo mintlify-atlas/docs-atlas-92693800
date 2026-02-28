@@ -1,0 +1,317 @@
+---
+title: RandomizedSearchCV
+description: Randomized search over hyperparameters with cross-validation
+---
+
+## Class Signature
+
+```typescript
+class RandomizedSearchCV<TEstimator extends CrossValEstimator> {
+  constructor(
+    estimatorFactory: (params: Record<string, unknown>) => TEstimator,
+    paramDistributions: ParamDistributions,
+    options?: RandomizedSearchCVOptions
+  )
+
+  fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+  predict(X: Matrix): Vector
+  score(X: Matrix, y: Vector): number
+
+  bestEstimator_: TEstimator | null
+  bestParams_: Record<string, unknown> | null
+  bestScore_: number | null
+  cvResults_: RandomizedSearchResultRow[]
+}
+```
+
+## Constructor
+
+<ParamField path="estimatorFactory" type="(params: Record<string, unknown>) => TEstimator" required>
+  Factory function that creates an estimator instance given a parameter dictionary
+</ParamField>
+
+<ParamField path="paramDistributions" type="ParamDistributions" required>
+  Dictionary with parameter names as keys and arrays of parameter values to sample from. Random combinations will be evaluated.
+  
+  Type: `Record<string, readonly unknown[]>`
+</ParamField>
+
+<ParamField path="options" type="RandomizedSearchCVOptions">
+  Configuration options for randomized search
+
+  <Expandable title="properties">
+    <ParamField path="cv" type="number | CrossValSplitter" default="5">
+      Cross-validation splitting strategy
+    </ParamField>
+
+    <ParamField path="scoring" type="BuiltInScoring | ScoringFn">
+      Scoring metric. Options: `"accuracy"`, `"f1"`, `"precision"`, `"recall"`, `"r2"`, `"mean_squared_error"`, `"neg_mean_squared_error"`, or custom function
+    </ParamField>
+
+    <ParamField path="refit" type="boolean" default="true">
+      Whether to refit the best estimator on the entire dataset after finding best parameters
+    </ParamField>
+
+    <ParamField path="errorScore" type="'raise' | number" default="'raise'">
+      Value to assign to the score if an error occurs during fitting. If 'raise', the error is raised.
+    </ParamField>
+
+    <ParamField path="nIter" type="number" default="10">
+      Number of parameter combinations to sample and evaluate
+    </ParamField>
+
+    <ParamField path="randomState" type="number" default="42">
+      Random seed for reproducible parameter sampling
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Run randomized search with cross-validation on sampled parameter combinations.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+### predict
+
+Predict using the best estimator found during randomized search.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+### score
+
+Score using the best estimator found during randomized search.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+## Properties
+
+<ResponseField name="bestEstimator_" type="TEstimator | null">
+  Estimator that was chosen by the search (refitted on the whole dataset if `refit=true`)
+</ResponseField>
+
+<ResponseField name="bestParams_" type="Record<string, unknown> | null">
+  Parameter setting that gave the best results
+</ResponseField>
+
+<ResponseField name="bestScore_" type="number | null">
+  Mean cross-validated score of the best estimator
+</ResponseField>
+
+<ResponseField name="cvResults_" type="RandomizedSearchResultRow[]">
+  Detailed results for each parameter combination, including:
+  - `params` - Parameter dictionary
+  - `splitScores` - Score for each CV fold
+  - `meanTestScore` - Mean of split scores
+  - `stdTestScore` - Standard deviation of split scores
+  - `rank` - Rank of this parameter combination (1 = best)
+  - `status` - "ok" or "error"
+  - `errorMessage` - Error message if status is "error"
+</ResponseField>
+
+## Description
+
+RandomizedSearchCV searches for optimal hyperparameters by randomly sampling a fixed number of parameter combinations from specified distributions. Unlike GridSearchCV which tests all combinations, this approach:
+
+- **Faster**: Samples only `nIter` combinations instead of all possible combinations
+- **Scalable**: Works well with large parameter spaces
+- **Effective**: Often finds near-optimal parameters with fewer evaluations
+
+This is the recommended approach when you have many hyperparameters or large value ranges.
+
+## Example
+
+```typescript
+import { RandomizedSearchCV } from 'bun-scikit';
+import { LinearRegression } from 'bun-scikit';
+
+const X = [
+  [1, 1], [1, 2], [2, 2], [2, 3],
+  [3, 1], [3, 2], [4, 2], [4, 3]
+];
+const y = [3, 4, 5, 6, 5, 6, 7, 8];
+
+// Define parameter distributions
+const paramDistributions = {
+  fitIntercept: [true, false],
+  normalize: [true, false]
+};
+
+// Sample 10 random combinations
+const randomSearch = new RandomizedSearchCV(
+  (params) => new LinearRegression(params),
+  paramDistributions,
+  { 
+    nIter: 10,
+    cv: 5,
+    scoring: 'r2',
+    randomState: 42
+  }
+);
+
+// Fit on data
+randomSearch.fit(X, y);
+
+// View results
+console.log('Best parameters:', randomSearch.bestParams_);
+console.log('Best R² score:', randomSearch.bestScore_);
+
+// Use best model for prediction
+const predictions = randomSearch.predict([[2.5, 2.5]]);
+console.log('Prediction:', predictions);
+```
+
+## Large Parameter Space
+
+```typescript
+import { RandomizedSearchCV } from 'bun-scikit';
+import { LogisticRegression } from 'bun-scikit';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Large parameter space
+const paramDistributions = {
+  learningRate: [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0],
+  maxIterations: [50, 100, 200, 500, 1000, 2000],
+  regularization: [0, 0.001, 0.01, 0.1, 1.0, 10.0],
+  solver: ['sgd', 'newton', 'lbfgs']
+};
+// Total combinations: 7 × 6 × 6 × 3 = 756
+// Testing all would be expensive!
+
+// Sample only 50 combinations
+const randomSearch = new RandomizedSearchCV(
+  (params) => new LogisticRegression(params),
+  paramDistributions,
+  {
+    nIter: 50,  // Much faster than 756 evaluations
+    cv: 4,
+    scoring: 'accuracy',
+    randomState: 123
+  }
+);
+
+randomSearch.fit(X, y);
+
+console.log('Tested 50 combinations out of 756 possible');
+console.log('Best accuracy:', randomSearch.bestScore_);
+console.log('Best hyperparameters:', randomSearch.bestParams_);
+```
+
+## Comparing with GridSearch
+
+```typescript
+import { GridSearchCV, RandomizedSearchCV } from 'bun-scikit';
+import { LinearRegression } from 'bun-scikit';
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [1, 2, 3, 4, 5];
+
+const paramGrid = {
+  alpha: [0.001, 0.01, 0.1, 1, 10],
+  beta: [0.1, 0.5, 1.0, 2.0, 5.0]
+};
+// 5 × 5 = 25 total combinations
+
+// GridSearch: Tests ALL 25 combinations
+const gridSearch = new GridSearchCV(
+  (params) => new LinearRegression(params),
+  paramGrid,
+  { cv: 3 }
+);
+gridSearch.fit(X, y);
+console.log('GridSearch tested:', gridSearch.cvResults_.length, 'combinations');
+
+// RandomizedSearch: Tests only 10 combinations
+const randomSearch = new RandomizedSearchCV(
+  (params) => new LinearRegression(params),
+  paramGrid,
+  { nIter: 10, cv: 3, randomState: 42 }
+);
+randomSearch.fit(X, y);
+console.log('RandomizedSearch tested:', randomSearch.cvResults_.length, 'combinations');
+
+// Often finds similar performance with less computation
+console.log('Grid best score:', gridSearch.bestScore_);
+console.log('Random best score:', randomSearch.bestScore_);
+```
+
+## Reproducible Results
+
+```typescript
+import { RandomizedSearchCV } from 'bun-scikit';
+
+const paramDistributions = {
+  alpha: [0.1, 0.5, 1.0, 2.0, 5.0],
+  beta: [0.01, 0.1, 1.0, 10.0]
+};
+
+// Same randomState = same parameter combinations
+const search1 = new RandomizedSearchCV(
+  (params) => new LinearRegression(params),
+  paramDistributions,
+  { nIter: 5, randomState: 42 }
+);
+
+const search2 = new RandomizedSearchCV(
+  (params) => new LinearRegression(params),
+  paramDistributions,
+  { nIter: 5, randomState: 42 }
+);
+
+search1.fit(X, y);
+search2.fit(X, y);
+
+// Will sample the same 5 combinations
+console.log('Same parameters tested:', 
+  JSON.stringify(search1.bestParams_) === JSON.stringify(search2.bestParams_)
+);
+```
+
+## Viewing All Sampled Combinations
+
+```typescript
+import { RandomizedSearchCV } from 'bun-scikit';
+
+// After fitting...
+const results = randomSearch.cvResults_;
+
+console.log(`Sampled ${results.length} combinations:\n`);
+
+for (const result of results) {
+  console.log('Parameters:', result.params);
+  console.log('Mean score:', result.meanTestScore.toFixed(4));
+  console.log('Rank:', result.rank);
+  console.log('---');
+}
+
+// Get top 3 parameter combinations
+const top3 = results
+  .sort((a, b) => a.rank - b.rank)
+  .slice(0, 3);
+
+console.log('\nTop 3 combinations:');
+top3.forEach(r => console.log(r.params, '→', r.meanTestScore));
+```
+
+## Notes
+
+- RandomizedSearch samples `nIter` random combinations (with replacement possible)
+- More efficient than GridSearchCV for large parameter spaces
+- Recommended when number of parameters × values > 20-30
+- The `randomState` parameter ensures reproducible sampling
+- Increasing `nIter` improves chances of finding optimal parameters but increases computation time
+- Best practice: Start with RandomizedSearch to narrow down parameter ranges, then optionally use GridSearchCV for fine-tuning
+- Time complexity: O(nIter × n_folds) instead of O(n_params^n_values × n_folds)

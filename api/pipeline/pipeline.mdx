@@ -1,0 +1,254 @@
+---
+title: Pipeline
+description: Chain transformers and estimators into a single workflow
+---
+
+A Pipeline chains multiple transformers and a final estimator into a single estimator.
+
+## Constructor
+
+```typescript
+import { Pipeline } from 'scikitjs';
+
+const pipeline = new Pipeline(steps);
+```
+
+<ParamField path="steps" type="[string, object][]" required>
+  List of (name, transform) tuples that are chained in sequential order. The last step can be an estimator.
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit all transformers and the final estimator.
+
+```typescript
+fit(X: number[][], y?: number[], sampleWeight?: number[]): Pipeline
+```
+
+<ParamField path="X" type="number[][]" required>
+  Training data
+</ParamField>
+
+<ParamField path="y" type="number[]">
+  Target values (required for supervised final estimator)
+</ParamField>
+
+<ParamField path="sampleWeight" type="number[]">
+  Sample weights passed to fit methods
+</ParamField>
+
+### predict
+
+Apply transforms and predict using the final estimator.
+
+```typescript
+predict(X: number[][]): number[]
+```
+
+### predictProba
+
+Apply transforms and predict probabilities using the final estimator.
+
+```typescript
+predictProba(X: number[][]): number[][]
+```
+
+### transform
+
+Apply all transforms in the pipeline.
+
+```typescript
+transform(X: number[][]): number[][]
+```
+
+### fitTransform
+
+Fit all transformers and transform the data.
+
+```typescript
+fitTransform(X: number[][], y?: number[], sampleWeight?: number[]): number[][]
+```
+
+### score
+
+Apply transforms and score using the final estimator.
+
+```typescript
+score(X: number[][], y: number[]): number
+```
+
+### getParams
+
+Get parameters for this estimator.
+
+```typescript
+getParams(deep?: boolean): Record<string, unknown>
+```
+
+### setParams
+
+Set parameters for this estimator.
+
+```typescript
+setParams(params: Record<string, unknown>): Pipeline
+```
+
+## Properties
+
+<ParamField path="steps_" type="readonly [string, object][]">
+  List of (name, transform) tuples in the pipeline
+</ParamField>
+
+<ParamField path="namedSteps_" type="Record<string, object>">
+  Dictionary-like object allowing access to steps by name
+</ParamField>
+
+## Examples
+
+### Classification Pipeline
+
+```typescript
+import {
+  Pipeline,
+  StandardScaler,
+  PCA,
+  LogisticRegression
+} from 'scikitjs';
+
+const X = [
+  [0, 0], [1, 1], [2, 2], [3, 3],
+  [4, 4], [5, 5], [6, 6], [7, 7]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Create pipeline
+const pipeline = new Pipeline([
+  ['scaler', new StandardScaler()],
+  ['pca', new PCA({ nComponents: 1 })],
+  ['classifier', new LogisticRegression()]
+]);
+
+// Fit pipeline
+pipeline.fit(X, y);
+
+// Make predictions
+const predictions = pipeline.predict([[1.5, 1.5], [5.5, 5.5]]);
+console.log(predictions); // [0, 1]
+
+// Get probabilities
+const probabilities = pipeline.predictProba([[1.5, 1.5], [5.5, 5.5]]);
+console.log(probabilities);
+// [[0.85, 0.15],
+//  [0.12, 0.88]]
+```
+
+### Regression Pipeline
+
+```typescript
+import {
+  Pipeline,
+  StandardScaler,
+  PolynomialFeatures,
+  LinearRegression
+} from 'scikitjs';
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [2, 4, 6, 8, 10];
+
+// Create pipeline with preprocessing
+const pipeline = new Pipeline([
+  ['poly', new PolynomialFeatures({ degree: 2 })],
+  ['scaler', new StandardScaler()],
+  ['regressor', new LinearRegression()]
+]);
+
+pipeline.fit(X, y);
+
+const predictions = pipeline.predict([[6], [7]]);
+console.log(predictions); // [12, 14]
+```
+
+### Access Individual Steps
+
+```typescript
+const pipeline = new Pipeline([
+  ['scaler', new StandardScaler()],
+  ['pca', new PCA({ nComponents: 2 })],
+  ['classifier', new LogisticRegression()]
+]);
+
+pipeline.fit(X, y);
+
+// Access steps by name
+const pca = pipeline.namedSteps_['pca'];
+console.log(pca.explainedVariance_);
+
+// Access steps by index
+const [name, step] = pipeline.steps_[1];
+console.log(name); // 'pca'
+```
+
+### Parameter Tuning
+
+```typescript
+import { Pipeline, StandardScaler, SVC, GridSearchCV } from 'scikitjs';
+
+const pipeline = new Pipeline([
+  ['scaler', new StandardScaler()],
+  ['svc', new SVC()]
+]);
+
+// Define parameter grid with step names
+const paramGrid = {
+  'svc__C': [0.1, 1, 10],
+  'svc__kernel': ['linear', 'rbf']
+};
+
+const gridSearch = new GridSearchCV(pipeline, paramGrid, {
+  cv: 5,
+  scoring: 'accuracy'
+});
+
+gridSearch.fit(X, y);
+
+console.log('Best parameters:', gridSearch.bestParams_);
+console.log('Best score:', gridSearch.bestScore_);
+```
+
+### Intermediate Transformations
+
+```typescript
+const pipeline = new Pipeline([
+  ['scaler', new StandardScaler()],
+  ['pca', new PCA({ nComponents: 2 })]
+]);
+
+// Fit and transform
+const XTransformed = pipeline.fitTransform(X);
+console.log(XTransformed);
+
+// Or fit then transform separately
+pipeline.fit(X);
+const XNew = pipeline.transform(XNew);
+```
+
+### Memory and Caching
+
+```typescript
+// Pipeline recomputes all transformers on each fit
+// For expensive transformations, consider:
+
+const scaler = new StandardScaler();
+scaler.fit(X);
+const XScaled = scaler.transform(X);
+
+const pca = new PCA({ nComponents: 2 });
+pca.fit(XScaled);
+const XReduced = pca.transform(XScaled);
+
+// Then use the reduced data directly
+const model = new LogisticRegression();
+model.fit(XReduced, y);
+```

@@ -1,0 +1,159 @@
+---
+title: RFE
+description: Recursive Feature Elimination
+---
+
+## Overview
+
+RFE (Recursive Feature Elimination) selects features by recursively considering smaller sets of features. It trains a model, ranks features by importance, removes the least important features, and repeats until the desired number of features is reached.
+
+## Constructor
+
+```typescript
+new RFE(estimator, options?)
+```
+
+### Parameters
+
+<ParamField path="estimator" type="Estimator" required>
+  Base estimator that exposes feature importance (e.g., via `coef_` or `featureImportances_`).
+</ParamField>
+
+<ParamField path="options.nFeaturesToSelect" type="number | null" default="null">
+  Number of features to select. If null, selects half of the features.
+</ParamField>
+
+<ParamField path="options.step" type="number" default="1">
+  Number or proportion of features to remove at each iteration.
+  If integer ≥ 1, removes that many features.
+  If float in (0, 1), removes that proportion of remaining features.
+</ParamField>
+
+## Methods
+
+### fit()
+
+```typescript
+fit(X: Matrix, y: Vector): this
+```
+
+Fit the RFE model and identify selected features.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values.
+</ParamField>
+
+### transform()
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Reduce X to selected features.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform.
+</ParamField>
+
+### fitTransform()
+
+```typescript
+fitTransform(X: Matrix, y: Vector): Matrix
+```
+
+Fit and transform in one step.
+
+## Properties
+
+<ParamField path="support_" type="boolean[] | null">
+  Boolean mask of selected features.
+</ParamField>
+
+<ParamField path="ranking_" type="number[] | null">
+  Feature ranking (1 = selected, higher values eliminated earlier).
+</ParamField>
+
+<ParamField path="nFeatures_" type="number | null">
+  Number of selected features.
+</ParamField>
+
+<ParamField path="estimator_" type="Estimator | null">
+  The fitted estimator used for feature ranking.
+</ParamField>
+
+## Examples
+
+### Basic RFE with LinearRegression
+
+```typescript
+import { RFE, LinearRegression } from "bun-scikit";
+
+const estimator = new LinearRegression();
+const selector = new RFE(estimator, { nFeaturesToSelect: 5 });
+
+const XNew = selector.fitTransform(XTrain, yTrain);
+console.log("Selected features:", selector.support_);
+console.log("Feature ranking:", selector.ranking_);
+```
+
+### RFE with RandomForest
+
+```typescript
+import { RFE, RandomForestClassifier } from "bun-scikit";
+
+const rf = new RandomForestClassifier({ nEstimators: 100 });
+const selector = new RFE(rf, { nFeaturesToSelect: 10, step: 2 });
+
+selector.fit(XTrain, yTrain);
+const XTrain_selected = selector.transform(XTrain);
+const XTest_selected = selector.transform(XTest);
+
+console.log("Number of features:", selector.nFeatures_);
+```
+
+### Use in pipeline
+
+```typescript
+import { Pipeline, RFE, LogisticRegression, StandardScaler } from "bun-scikit";
+
+const selector = new RFE(
+  new LogisticRegression(),
+  { nFeaturesToSelect: 15 }
+);
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["rfe", selector],
+  ["classifier", new LogisticRegression()]
+]);
+
+pipeline.fit(XTrain, yTrain);
+const score = pipeline.score(XTest, yTest);
+```
+
+### Stepwise elimination
+
+```typescript
+import { RFE, Ridge } from "bun-scikit";
+
+// Remove 20% of features at each iteration
+const selector = new RFE(
+  new Ridge({ alpha: 1.0 }),
+  { nFeaturesToSelect: 5, step: 0.2 }
+);
+
+selector.fit(XTrain, yTrain);
+console.log("Ranking:", selector.ranking_);
+```
+
+## Notes
+
+- RFE is a wrapper method that requires training the model multiple times
+- Computationally expensive for large datasets or complex models
+- Works best with models that provide feature importance or coefficients
+- Common base estimators: LinearRegression, LogisticRegression, SVC (linear), RandomForest
+- Consider RFECV (with cross-validation) for automatic feature number selection

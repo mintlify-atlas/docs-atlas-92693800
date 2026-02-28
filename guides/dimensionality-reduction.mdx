@@ -1,0 +1,498 @@
+---
+title: "Dimensionality Reduction"
+description: "PCA, SVD, t-SNE, and manifold learning techniques in bun-scikit"
+---
+
+## Overview
+
+Dimensionality reduction techniques transform high-dimensional data into lower dimensions while preserving important structure. This is useful for visualization, noise reduction, and improving model performance.
+
+<CardGroup cols={2}>
+  <Card title="PCA" icon="compress-arrows-alt" href="#pca">
+    Principal Component Analysis
+  </Card>
+  <Card title="SVD" icon="equals" href="#truncated-svd">
+    Singular Value Decomposition
+  </Card>
+  <Card title="t-SNE" icon="project-diagram" href="#t-sne">
+    t-Distributed Stochastic Neighbor Embedding
+  </Card>
+  <Card title="Manifold Learning" icon="wave-square" href="#manifold-learning">
+    Isomap, LLE, MDS
+  </Card>
+</CardGroup>
+
+## PCA
+
+Principal Component Analysis finds orthogonal axes that capture maximum variance in the data.
+
+### Basic Usage
+
+```typescript
+import { PCA } from "bun-scikit";
+
+const X = [
+  [2.5, 2.4],
+  [0.5, 0.7],
+  [2.2, 2.9],
+  [1.9, 2.2],
+  [3.1, 3.0],
+];
+
+const pca = new PCA({
+  nComponents: 2,
+  whiten: false,
+});
+
+pca.fit(X);
+
+console.log("Components:", pca.components_);
+console.log("Explained variance:", pca.explainedVariance_);
+console.log("Explained variance ratio:", pca.explainedVarianceRatio_);
+console.log("Mean:", pca.mean_);
+
+// Transform data to principal components
+const X_transformed = pca.transform(X);
+console.log("Transformed:", X_transformed);
+```
+
+### Configuration Options
+
+<ParamField path="nComponents" type="number" default="undefined">
+  Number of components to keep. If not specified, keeps all components.
+</ParamField>
+
+<ParamField path="whiten" type="boolean" default="false">
+  Whether to whiten the components (scale to unit variance)
+</ParamField>
+
+<ParamField path="tolerance" type="number" default="1e-8">
+  Convergence tolerance for eigenvalue decomposition
+</ParamField>
+
+<ParamField path="maxIter" type="number" default="1000">
+  Maximum iterations for eigenvalue decomposition
+</ParamField>
+
+### Fit and Transform
+
+```typescript
+// Fit and transform in one step
+const X_pca = pca.fitTransform(X);
+
+// Or separately
+pca.fit(X);
+const X_new = pca.transform(X_test);
+
+// Inverse transform back to original space
+const X_original = pca.inverseTransform(X_pca);
+```
+
+### Explained Variance
+
+Determine how many components to keep:
+
+```typescript
+const pca = new PCA();
+pca.fit(X);
+
+const ratios = pca.explainedVarianceRatio_!;
+let cumulative = 0;
+let nComponents = 0;
+
+for (let i = 0; i < ratios.length; i++) {
+  cumulative += ratios[i];
+  if (cumulative >= 0.95) {
+    nComponents = i + 1;
+    break;
+  }
+}
+
+console.log(`Keep ${nComponents} components to explain 95% variance`);
+
+// Refit with optimal components
+const pcaOptimal = new PCA({ nComponents });
+pcaOptimal.fit(X);
+```
+
+### Attributes
+
+- `components_`: Principal axes in feature space
+- `explainedVariance_`: Variance explained by each component
+- `explainedVarianceRatio_`: Percentage of variance explained
+- `mean_`: Per-feature mean of the training data
+- `nComponents_`: Number of components
+- `nFeaturesIn_`: Number of features in the input
+
+### Visualization Example
+
+```typescript
+// Reduce to 2D for visualization
+const pca2d = new PCA({ nComponents: 2 });
+const X_2d = pca2d.fitTransform(highDimData);
+
+// X_2d now contains 2D points that can be plotted
+console.log("2D coordinates:", X_2d);
+```
+
+## Truncated SVD
+
+Singular Value Decomposition works well with sparse matrices and doesn't center the data.
+
+### Basic Usage
+
+```typescript
+import { TruncatedSVD } from "bun-scikit";
+
+const X = [
+  [1, 2, 3, 4],
+  [5, 6, 7, 8],
+  [9, 10, 11, 12],
+];
+
+const svd = new TruncatedSVD({
+  nComponents: 2,
+  nIter: 5,
+  randomState: 42,
+});
+
+svd.fit(X);
+
+console.log("Components:", svd.components_);
+console.log("Explained variance:", svd.explainedVariance_);
+console.log("Explained variance ratio:", svd.explainedVarianceRatio_);
+
+const X_transformed = svd.transform(X);
+console.log("Transformed:", X_transformed);
+```
+
+### Configuration
+
+<ParamField path="nComponents" type="number" default="2">
+  Number of components to keep
+</ParamField>
+
+<ParamField path="nIter" type="number" default="5">
+  Number of iterations for randomized SVD solver
+</ParamField>
+
+<ParamField path="tolerance" type="number" default="0.0">
+  Tolerance for singular values
+</ParamField>
+
+<ParamField path="randomState" type="number" default="undefined">
+  Random seed for reproducibility
+</ParamField>
+
+### When to Use SVD vs PCA
+
+<Tip>
+  - Use **PCA** when you want to center the data and work with covariance
+  - Use **TruncatedSVD** for sparse matrices or when centering is not desired
+  - TruncatedSVD is often used for text data (TF-IDF matrices)
+</Tip>
+
+## t-SNE
+
+t-SNE (t-Distributed Stochastic Neighbor Embedding) is excellent for visualizing high-dimensional data in 2D or 3D.
+
+### Basic Usage
+
+```typescript
+import { TSNE } from "bun-scikit";
+
+const X = [
+  [0, 0, 0],
+  [0, 1, 1],
+  [1, 0, 1],
+  [1, 1, 1],
+  [5, 5, 5],
+  [5, 6, 5],
+];
+
+const tsne = new TSNE({
+  nComponents: 2,
+  perplexity: 30,
+  learningRate: 200,
+  maxIter: 1000,
+  randomState: 42,
+});
+
+const X_embedded = tsne.fitTransform(X);
+console.log("2D embedding:", X_embedded);
+console.log("KL divergence:", tsne.klDivergence_);
+```
+
+### Configuration
+
+<ParamField path="nComponents" type="number" default="2">
+  Dimension of the embedded space (typically 2 or 3)
+</ParamField>
+
+<ParamField path="perplexity" type="number" default="30">
+  Related to number of nearest neighbors. Should be between 5 and 50.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="200">
+  Learning rate for optimization. Too high may result in random-looking embedding.
+</ParamField>
+
+<ParamField path="maxIter" type="number" default="1000">
+  Maximum number of iterations for optimization
+</ParamField>
+
+<ParamField path="randomState" type="number" default="undefined">
+  Random seed for reproducibility
+</ParamField>
+
+### Important Notes
+
+<Warning>
+  t-SNE is primarily for **visualization**, not for dimensionality reduction before other algorithms. It:
+  - Is non-deterministic (use `randomState` for reproducibility)
+  - Cannot transform new data points
+  - Is computationally expensive
+  - Doesn't preserve global structure well
+</Warning>
+
+### Best Practices
+
+```typescript
+// For large datasets, reduce dimensions with PCA first
+import { PCA } from "bun-scikit";
+
+const pca = new PCA({ nComponents: 50 });
+const X_pca = pca.fitTransform(largeDataset);
+
+const tsne = new TSNE({ nComponents: 2, perplexity: 30 });
+const X_vis = tsne.fitTransform(X_pca);
+```
+
+<Note>
+  The current implementation is a simplified version. For production use with very large datasets, consider using PCA for initialization.
+</Note>
+
+## Manifold Learning
+
+Manifold learning methods discover non-linear structure in data.
+
+### Isomap
+
+Isomap preserves geodesic distances along the manifold:
+
+```typescript
+import { Isomap } from "bun-scikit";
+
+const isomap = new Isomap({
+  nComponents: 2,
+  nNeighbors: 5,
+});
+
+const X_embedded = isomap.fitTransform(X);
+console.log("Embedding:", X_embedded);
+```
+
+### Locally Linear Embedding (LLE)
+
+LLE preserves local relationships:
+
+```typescript
+import { LocallyLinearEmbedding } from "bun-scikit";
+
+const lle = new LocallyLinearEmbedding({
+  nComponents: 2,
+  nNeighbors: 10,
+  regularization: 1e-3,
+});
+
+const X_embedded = lle.fitTransform(X);
+```
+
+### Multi-Dimensional Scaling (MDS)
+
+MDS preserves pairwise distances:
+
+```typescript
+import { MDS } from "bun-scikit";
+
+const mds = new MDS({
+  nComponents: 2,
+  metric: true,
+  maxIter: 300,
+});
+
+const X_embedded = mds.fitTransform(X);
+console.log("Stress:", mds.stress_); // Lower is better
+```
+
+## Other Decomposition Methods
+
+### Kernel PCA
+
+Non-linear dimensionality reduction using kernel methods:
+
+```typescript
+import { KernelPCA } from "bun-scikit";
+
+const kpca = new KernelPCA({
+  nComponents: 2,
+  kernel: "rbf",
+  gamma: 0.1,
+});
+
+kpca.fit(X);
+const X_transformed = kpca.transform(X);
+```
+
+### NMF (Non-negative Matrix Factorization)
+
+Decomposition for non-negative data:
+
+```typescript
+import { NMF } from "bun-scikit";
+
+const nmf = new NMF({
+  nComponents: 10,
+  maxIter: 200,
+  randomState: 42,
+});
+
+const W = nmf.fitTransform(X); // Document-topic matrix
+const H = nmf.components_; // Topic-word matrix
+```
+
+### FastICA
+
+Independent Component Analysis:
+
+```typescript
+import { FastICA } from "bun-scikit";
+
+const ica = new FastICA({
+  nComponents: 3,
+  maxIter: 200,
+  tolerance: 1e-4,
+});
+
+const sources = ica.fitTransform(X);
+```
+
+## Common Patterns
+
+### Pipeline Integration
+
+```typescript
+import { Pipeline } from "bun-scikit";
+import { StandardScaler } from "bun-scikit";
+import { PCA } from "bun-scikit";
+import { LogisticRegression } from "bun-scikit";
+
+const pipe = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["pca", new PCA({ nComponents: 10 })],
+  ["classifier", new LogisticRegression()],
+]);
+
+pipe.fit(X_train, y_train);
+const predictions = pipe.predict(X_test);
+```
+
+### Feature Extraction for Clustering
+
+```typescript
+import { PCA } from "bun-scikit";
+import { KMeans } from "bun-scikit";
+
+// Reduce dimensions before clustering
+const pca = new PCA({ nComponents: 10 });
+const X_reduced = pca.fitTransform(X);
+
+const kmeans = new KMeans({ nClusters: 5 });
+kmeans.fit(X_reduced);
+```
+
+### Noise Reduction
+
+```typescript
+// Use PCA to filter noise
+const pca = new PCA({ nComponents: 20 });
+pca.fit(noisyData);
+
+const X_denoised = pca.inverseTransform(pca.transform(noisyData));
+```
+
+## Performance Tips
+
+<AccordionGroup>
+  <Accordion title="Choosing Number of Components">
+    Use explained variance to guide selection:
+    ```typescript
+    pca.fit(X);
+    const cumVar = [];
+    let sum = 0;
+    for (const ratio of pca.explainedVarianceRatio_!) {
+      sum += ratio;
+      cumVar.push(sum);
+    }
+    // Find index where cumVar >= 0.95
+    ```
+  </Accordion>
+
+  <Accordion title="Scaling Before Reduction">
+    Always standardize features first:
+    ```typescript
+    import { StandardScaler } from "bun-scikit";
+    
+    const scaler = new StandardScaler();
+    const X_scaled = scaler.fitTransform(X);
+    const pca = new PCA().fit(X_scaled);
+    ```
+  </Accordion>
+
+  <Accordion title="Memory Efficiency">
+    For very large datasets:
+    - Use TruncatedSVD instead of PCA
+    - Specify `nComponents` explicitly
+    - Don't compute all components if you only need a few
+  </Accordion>
+</AccordionGroup>
+
+## Comparison Table
+
+| Method | Linear | Preserves Distances | Computational Cost | Use Case |
+|--------|--------|---------------------|--------------------|-----------|
+| **PCA** | Yes | Global | Low | General dimensionality reduction |
+| **TruncatedSVD** | Yes | Global | Low | Sparse data, text |
+| **t-SNE** | No | Local | High | Visualization only |
+| **Isomap** | No | Geodesic | Medium | Manifolds with holes |
+| **LLE** | No | Local | Medium | Locally linear manifolds |
+| **MDS** | No | Pairwise | High | Preserving distances |
+| **Kernel PCA** | No | Depends on kernel | Medium-High | Non-linear structure |
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Data Visualization" icon="chart-scatter">
+    Use t-SNE or PCA to visualize high-dimensional data in 2D/3D
+  </Card>
+  <Card title="Speed Up Training" icon="gauge-high">
+    Apply PCA before training to reduce computation time
+  </Card>
+  <Card title="Feature Engineering" icon="wand-magic-sparkles">
+    Extract meaningful features with PCA or NMF
+  </Card>
+  <Card title="Noise Reduction" icon="filter">
+    Filter noise by keeping only top principal components
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Clustering" icon="circle-nodes" href="/guides/clustering">
+    Apply clustering to reduced data
+  </Card>
+  <Card title="Model Selection" icon="sliders" href="/guides/model-selection">
+    Optimize number of components
+  </Card>
+</CardGroup>

@@ -1,0 +1,128 @@
+---
+title: StandardScaler
+description: Standardize features by removing the mean and scaling to unit variance
+---
+
+## Overview
+
+StandardScaler transforms features to have zero mean and unit variance. This is a common requirement for many machine learning algorithms.
+
+## Constructor
+
+```typescript
+new StandardScaler()
+```
+
+No parameters required.
+
+## Properties
+
+<ParamField path="mean_" type="Vector | null">
+  Mean value for each feature in the training set. Set during `fit()`.
+</ParamField>
+
+<ParamField path="scale_" type="Vector | null">
+  Standard deviation for each feature in the training set. Set during `fit()`.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute the mean and standard deviation to be used for later scaling.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a feature.
+</ParamField>
+
+**Returns:** `this` - The fitted scaler instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Perform standardization by centering and scaling.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data with zero mean and unit variance.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data.
+
+### inverseTransform
+
+```typescript
+inverseTransform(X: Matrix): Matrix
+```
+
+Scale back the data to the original representation.
+
+<ParamField path="X" type="Matrix" required>
+  Transformed data matrix to inverse transform.
+</ParamField>
+
+**Returns:** `Matrix` - Original scale data.
+
+## Example
+
+```typescript
+import { StandardScaler } from 'bun-scikit';
+
+// Training data
+const X = [
+  [1, 2],
+  [2, 4],
+  [3, 6],
+  [4, 8]
+];
+
+// Create and fit scaler
+const scaler = new StandardScaler();
+scaler.fit(X);
+
+console.log('Mean:', scaler.mean_);
+// Output: Mean: [2.5, 5]
+
+console.log('Scale:', scaler.scale_);
+// Output: Scale: [1.118..., 2.236...]
+
+// Transform data
+const XScaled = scaler.transform(X);
+console.log('Scaled:', XScaled);
+// Output: Scaled: [[-1.34, -1.34], [-0.45, -0.45], [0.45, 0.45], [1.34, 1.34]]
+
+// Or use fit_transform pattern
+const scaler2 = new StandardScaler();
+const XScaled2 = scaler2.fitTransform(X);
+
+// Inverse transform
+const XOriginal = scaler.inverseTransform(XScaled);
+console.log('Original:', XOriginal);
+// Output: Original: [[1, 2], [2, 4], [3, 6], [4, 8]]
+```
+
+## Notes
+
+- Features with zero variance are scaled to 1 to avoid division by zero
+- The scaler must be fitted before calling `transform()` or `inverseTransform()`
+- Input data must be finite (no NaN or Infinity values)

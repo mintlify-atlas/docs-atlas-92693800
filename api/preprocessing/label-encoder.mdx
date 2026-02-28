@@ -1,0 +1,166 @@
+---
+title: LabelEncoder
+description: Encode target labels with values between 0 and n_classes-1
+---
+
+## Overview
+
+LabelEncoder encodes labels as consecutive integers from 0 to n_classes-1. This is useful for converting categorical labels to numeric format for algorithms that require numeric input.
+
+## Constructor
+
+```typescript
+new LabelEncoder()
+```
+
+No parameters required.
+
+## Properties
+
+<ParamField path="classes_" type="number[] | null">
+  Sorted unique classes found during fitting.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(y: Vector): this
+```
+
+Fit label encoder to a set of labels.
+
+<ParamField path="y" type="Vector" required>
+  Target labels array. Must be a non-empty array of finite numbers.
+</ParamField>
+
+**Returns:** `this` - The fitted encoder instance.
+
+### transform
+
+```typescript
+transform(y: Vector): Vector
+```
+
+Transform labels to normalized encoding (integers from 0 to n_classes-1).
+
+<ParamField path="y" type="Vector" required>
+  Target labels to encode. All labels must have been seen during fit.
+</ParamField>
+
+**Returns:** `Vector` - Encoded labels.
+
+### fitTransform
+
+```typescript
+fitTransform(y: Vector): Vector
+```
+
+Fit label encoder and return encoded labels. Equivalent to calling `fit(y).transform(y)`.
+
+<ParamField path="y" type="Vector" required>
+  Target labels to fit and encode.
+</ParamField>
+
+**Returns:** `Vector` - Encoded labels.
+
+### inverseTransform
+
+```typescript
+inverseTransform(y: Vector): Vector
+```
+
+Transform labels back to original encoding.
+
+<ParamField path="y" type="Vector" required>
+  Encoded labels (integers). All values must be valid indices.
+</ParamField>
+
+**Returns:** `Vector` - Original labels.
+
+## Example
+
+```typescript
+import { LabelEncoder } from 'bun-scikit';
+
+// Original labels
+const labels = [1, 2, 2, 6, 1, 6, 6, 2];
+
+// Create and fit encoder
+const encoder = new LabelEncoder();
+const encoded = encoder.fitTransform(labels);
+
+console.log('Classes:', encoder.classes_);
+// Output: Classes: [1, 2, 6]
+
+console.log('Encoded:', encoded);
+// Output: Encoded: [0, 1, 1, 2, 0, 2, 2, 1]
+// 1 -> 0, 2 -> 1, 6 -> 2
+
+// Decode back to original labels
+const decoded = encoder.inverseTransform(encoded);
+console.log('Decoded:', decoded);
+// Output: Decoded: [1, 2, 2, 6, 1, 6, 6, 2]
+```
+
+## Example: Classification Pipeline
+
+```typescript
+import { LabelEncoder } from 'bun-scikit';
+
+// Original string-like numeric labels
+const yTrain = [10, 20, 30, 20, 10, 30];
+const yTest = [20, 10, 30];
+
+// Encode training labels
+const encoder = new LabelEncoder();
+const yTrainEncoded = encoder.fitTransform(yTrain);
+
+console.log('Training labels encoded:', yTrainEncoded);
+// Output: Training labels encoded: [0, 1, 2, 1, 0, 2]
+
+// Encode test labels (must use same encoder)
+const yTestEncoded = encoder.transform(yTest);
+console.log('Test labels encoded:', yTestEncoded);
+// Output: Test labels encoded: [1, 0, 2]
+
+// After prediction, decode back
+const predictions = [0, 1, 2, 0];  // Model predictions
+const predictedLabels = encoder.inverseTransform(predictions);
+console.log('Predicted original labels:', predictedLabels);
+// Output: Predicted original labels: [10, 20, 30, 10]
+```
+
+## Example: Error Handling
+
+```typescript
+import { LabelEncoder } from 'bun-scikit';
+
+const encoder = new LabelEncoder();
+encoder.fit([1, 2, 3]);
+
+// Try to encode unknown label
+try {
+  encoder.transform([1, 2, 4]);  // 4 was not seen during fit
+} catch (error) {
+  console.error(error.message);
+  // Output: Unknown label 4 at index 2.
+}
+
+// Try to decode invalid index
+try {
+  encoder.inverseTransform([0, 1, 5]);  // 5 is out of range
+} catch (error) {
+  console.error(error.message);
+  // Output: Encoded label out of range at index 2: 5.
+}
+```
+
+## Notes
+
+- Labels are sorted before encoding, so encoding is consistent across fits
+- All labels in `transform()` must have been seen during `fit()`
+- Use OneHotEncoder if you need one-hot encoded output instead of integer labels
+- The encoder must be fitted before calling `transform()` or `inverseTransform()`
+- Input must be finite numeric values

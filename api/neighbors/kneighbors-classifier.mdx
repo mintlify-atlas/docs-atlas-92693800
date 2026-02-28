@@ -1,0 +1,188 @@
+---
+title: 'KNeighborsClassifier'
+description: 'K-Nearest Neighbors classifier for classification tasks'
+---
+
+## Overview
+
+The `KNeighborsClassifier` implements the k-nearest neighbors vote for classification. It predicts the class of a sample based on the majority class among its k nearest neighbors in the training set.
+
+## Constructor
+
+```typescript
+import { KNeighborsClassifier } from '@scikitjs/sklearn';
+
+const classifier = new KNeighborsClassifier({
+  nNeighbors: 5
+});
+```
+
+### Parameters
+
+<ParamField path="nNeighbors" type="number" default={5}>
+  Number of neighbors to use for classification. Must be a positive integer.
+</ParamField>
+
+## Methods
+
+### fit()
+
+Fit the k-nearest neighbors classifier from the training dataset.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a feature.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (class labels) for the training data.
+</ParamField>
+
+<ParamField path="sampleWeight" type="Vector">
+  Sample weights (currently not implemented but reserved for future use).
+</ParamField>
+
+**Returns:** `this` - The fitted classifier instance.
+
+**Throws:**
+- Error if `nNeighbors` exceeds the training set size
+- Error if input validation fails
+
+### predict()
+
+Predict the class labels for the provided data.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples to predict.
+</ParamField>
+
+**Returns:** `Vector` - Predicted class labels.
+
+### predictProba()
+
+Return probability estimates for the test data.
+
+```typescript
+predictProba(X: Matrix): Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples to predict.
+</ParamField>
+
+**Returns:** `Matrix` - Probability of each class for each sample. Each row represents a sample, and each column represents a class probability.
+
+### score()
+
+Return the mean accuracy on the given test data and labels.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  True labels for the test samples.
+</ParamField>
+
+**Returns:** `number` - Mean accuracy score.
+
+## Attributes
+
+<ParamField path="classes_" type="Vector">
+  Unique class labels identified during training.
+</ParamField>
+
+## Examples
+
+### Basic Classification
+
+```typescript
+import { KNeighborsClassifier } from '@scikitjs/sklearn';
+
+// Training data: 2D features
+const X = [
+  [0, 0],
+  [1, 1],
+  [2, 2],
+  [3, 3]
+];
+
+// Labels: binary classification
+const y = [0, 0, 1, 1];
+
+// Create and train classifier
+const knn = new KNeighborsClassifier({ nNeighbors: 3 });
+knn.fit(X, y);
+
+// Predict new samples
+const predictions = knn.predict([[1.5, 1.5], [2.5, 2.5]]);
+console.log(predictions); // [0, 1]
+```
+
+### Multi-class Classification with Probabilities
+
+```typescript
+import { KNeighborsClassifier } from '@scikitjs/sklearn';
+
+// Iris-like dataset
+const X = [
+  [5.1, 3.5],
+  [4.9, 3.0],
+  [7.0, 3.2],
+  [6.4, 3.2],
+  [6.3, 3.3],
+  [5.8, 2.7]
+];
+const y = [0, 0, 1, 1, 2, 2];
+
+const knn = new KNeighborsClassifier({ nNeighbors: 3 });
+knn.fit(X, y);
+
+// Get probability estimates
+const probabilities = knn.predictProba([[6.0, 3.0]]);
+console.log(probabilities);
+// [[0.0, 0.67, 0.33]] - 67% class 1, 33% class 2
+```
+
+### Model Evaluation
+
+```typescript
+import { KNeighborsClassifier } from '@scikitjs/sklearn';
+
+// Training data
+const XTrain = [
+  [0, 0], [0.5, 0.5], [1, 1],
+  [2, 2], [2.5, 2.5], [3, 3]
+];
+const yTrain = [0, 0, 0, 1, 1, 1];
+
+// Test data
+const XTest = [[0.25, 0.25], [2.75, 2.75]];
+const yTest = [0, 1];
+
+const knn = new KNeighborsClassifier({ nNeighbors: 3 });
+knn.fit(XTrain, yTrain);
+
+// Calculate accuracy
+const accuracy = knn.score(XTest, yTest);
+console.log(`Accuracy: ${accuracy}`); // 1.0 (100%)
+```
+
+## Notes
+
+- Uses squared Euclidean distance for efficiency (avoids square root computation)
+- Stores the entire training dataset (instance-based learning)
+- Prediction time increases with training set size
+- Works best when features are on similar scales
+- The algorithm uses uniform weighting (all neighbors contribute equally)

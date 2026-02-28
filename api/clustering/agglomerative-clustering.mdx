@@ -1,0 +1,290 @@
+---
+title: 'AgglomerativeClustering'
+description: 'Hierarchical clustering using bottom-up approach'
+---
+
+## Overview
+
+AgglomerativeClustering performs hierarchical clustering using a bottom-up approach. It starts with each sample as its own cluster and progressively merges the closest pairs of clusters until reaching the desired number of clusters.
+
+## Constructor
+
+```typescript
+new AgglomerativeClustering(options?: AgglomerativeClusteringOptions)
+```
+
+### Parameters
+
+<ParamField path="options" type="AgglomerativeClusteringOptions" default="{}">
+  Configuration options for agglomerative clustering
+  
+  <Expandable title="properties">
+    <ParamField path="nClusters" type="number" default="2">
+      Number of clusters to find. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="linkage" type="AgglomerativeLinkage" default="ward">
+      Linkage criterion for determining distance between clusters. Options:
+      - `"ward"`: Minimizes variance within clusters
+      - `"complete"`: Maximum distance between cluster members
+      - `"average"`: Average distance between cluster members
+      - `"single"`: Minimum distance between cluster members
+    </ParamField>
+    
+    <ParamField path="metric" type="AgglomerativeMetric" default="euclidean">
+      Distance metric. Currently only `"euclidean"` is supported.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the hierarchical clustering model to the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where rows are samples and columns are features. Must be non-empty with consistent row sizes and finite values.
+</ParamField>
+
+**Returns:** The fitted AgglomerativeClustering instance (for method chaining).
+
+**Throws:** Error if nClusters exceeds sample count or data validation fails.
+
+### fitPredict
+
+Fit the model and return cluster labels for training data.
+
+```typescript
+fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and predict on.
+</ParamField>
+
+**Returns:** Vector of cluster labels (integers from 0 to nClusters-1).
+
+## Properties
+
+<ParamField path="labels_" type="Vector | null">
+  Cluster labels for each training sample.
+</ParamField>
+
+<ParamField path="children_" type="number[][] | null">
+  Merge history. Each row [left, right] represents clusters that were merged.
+</ParamField>
+
+<ParamField path="distances_" type="Vector | null">
+  Distance at each merge step.
+</ParamField>
+
+<ParamField path="nConnectedComponents_" type="number" default="1">
+  Number of connected components in the graph.
+</ParamField>
+
+<ParamField path="nLeaves_" type="number | null">
+  Number of leaves in the hierarchical tree.
+</ParamField>
+
+<ParamField path="nClusters_" type="number | null">
+  Number of clusters found during fitting.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fitting.
+</ParamField>
+
+### nMerges_
+
+Getter property that returns the number of merge operations performed.
+
+```typescript
+get nMerges_(): number
+```
+
+**Returns:** Number of merges in the hierarchical tree.
+
+## Examples
+
+### Basic Hierarchical Clustering
+
+```typescript
+import { AgglomerativeClustering } from 'bun-scikit';
+
+const X = [
+  [1.0, 2.0],
+  [1.5, 1.8],
+  [5.0, 8.0],
+  [8.0, 8.0],
+  [1.0, 0.6],
+  [9.0, 11.0]
+];
+
+// Create and fit model with Ward linkage
+const clustering = new AgglomerativeClustering({
+  nClusters: 2,
+  linkage: 'ward'
+});
+
+clustering.fit(X);
+
+console.log('Labels:', clustering.labels_);
+console.log('Number of merges:', clustering.nMerges_);
+console.log('Merge distances:', clustering.distances_);
+```
+
+### Comparing Linkage Methods
+
+```typescript
+import { AgglomerativeClustering } from 'bun-scikit';
+
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8],
+  [8, 8], [1, 0.6], [9, 11]
+];
+
+const linkages = ['ward', 'complete', 'average', 'single'] as const;
+
+for (const linkage of linkages) {
+  const model = new AgglomerativeClustering({
+    nClusters: 2,
+    linkage
+  });
+  
+  model.fit(X);
+  console.log(`${linkage} linkage labels:`, model.labels_);
+}
+```
+
+### Hierarchical Tree Analysis
+
+```typescript
+import { AgglomerativeClustering } from 'bun-scikit';
+
+const data = [
+  [0, 0], [1, 1], [2, 2],
+  [10, 10], [11, 11], [12, 12]
+];
+
+const clustering = new AgglomerativeClustering({
+  nClusters: 2,
+  linkage: 'complete'
+});
+
+clustering.fit(data);
+
+console.log('Merge history:');
+clustering.children_!.forEach((merge, i) => {
+  console.log(`Step ${i + 1}: Merge ${merge[0]} and ${merge[1]} at distance ${clustering.distances_![i].toFixed(3)}`);
+});
+```
+
+### Variable Number of Clusters
+
+```typescript
+import { AgglomerativeClustering } from 'bun-scikit';
+
+const X = [
+  [1, 2], [1.5, 1.8], [1.2, 2.1],
+  [5, 8], [5.5, 8.2], [5.2, 7.9],
+  [9, 11], [9.2, 11.3], [8.8, 10.9]
+];
+
+// Try different numbers of clusters
+for (const k of [2, 3, 4]) {
+  const model = new AgglomerativeClustering({
+    nClusters: k,
+    linkage: 'ward'
+  });
+  
+  model.fit(X);
+  console.log(`k=${k} labels:`, model.labels_);
+}
+```
+
+### Dendrogram Visualization Data
+
+```typescript
+import { AgglomerativeClustering } from 'bun-scikit';
+
+const samples = [
+  [0, 0], [2, 2], [1, 1],
+  [10, 10], [12, 12], [11, 11]
+];
+
+const clustering = new AgglomerativeClustering({
+  nClusters: 2,
+  linkage: 'average'
+});
+
+clustering.fit(samples);
+
+// Extract data for dendrogram plotting
+const dendrogramData = {
+  children: clustering.children_,
+  distances: clustering.distances_,
+  nSamples: samples.length,
+  labels: clustering.labels_
+};
+
+console.log('Dendrogram data:', dendrogramData);
+```
+
+## Algorithm Details
+
+The algorithm works as follows:
+
+1. **Initialize**: Each sample starts as its own cluster
+2. **Compute distances**: Calculate distance between all cluster pairs
+3. **Merge**: Combine the two closest clusters
+4. **Update distances**: Recalculate distances for the new cluster
+5. **Repeat**: Continue until desired number of clusters reached
+
+### Linkage Methods
+
+**Ward**: Minimizes the variance within clusters (recommended for most cases)
+```
+distance = sqrt((nA * nB) / (nA + nB)) * ||centroidA - centroidB||
+```
+
+**Complete**: Maximum distance between any two members
+```
+distance = max(dist(a, b)) for a in A, b in B
+```
+
+**Average**: Average distance between all pairs of members
+```
+distance = mean(dist(a, b)) for a in A, b in B
+```
+
+**Single**: Minimum distance between any two members
+```
+distance = min(dist(a, b)) for a in A, b in B
+```
+
+## Advantages
+
+- No need to specify number of clusters upfront (can cut dendrogram at any level)
+- Produces hierarchical relationships
+- Works with any distance metric
+- Deterministic results
+
+## Considerations
+
+- Time complexity: O(n³) in this implementation
+- Space complexity: O(n²)
+- Not suitable for very large datasets
+- Cannot undo previous merges
+- Sensitive to outliers (especially with single linkage)
+
+## Linkage Selection Guide
+
+- **Ward**: Best for equal-sized, compact clusters
+- **Complete**: Good for avoiding chain-like clusters
+- **Average**: Balanced approach, less sensitive to outliers
+- **Single**: Can find elongated clusters but sensitive to noise

@@ -1,0 +1,266 @@
+---
+title: FeatureUnion
+description: Concatenate results of multiple transformer objects
+---
+
+FeatureUnion combines several transformer objects into a single transformer that concatenates their outputs.
+
+## Constructor
+
+```typescript
+import { FeatureUnion } from 'scikitjs';
+
+const union = new FeatureUnion(specs, options);
+```
+
+<ParamField path="specs" type="[string, transformer][]" required>
+  List of (name, transformer) tuples:
+  - name: string identifier
+  - transformer: transformer object, 'drop', or 'passthrough'
+</ParamField>
+
+<ParamField path="options.transformerWeights" type="Record<string, number>">
+  Multiplicative weights for features from each transformer. Keys are transformer names.
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit all transformers.
+
+```typescript
+fit(X: number[][], y?: number[], sampleWeight?: number[]): FeatureUnion
+```
+
+### transform
+
+Transform X separately by each transformer and concatenate results.
+
+```typescript
+transform(X: number[][]): number[][]
+```
+
+### fitTransform
+
+Fit all transformers and transform the data.
+
+```typescript
+fitTransform(X: number[][], y?: number[], sampleWeight?: number[]): number[][]
+```
+
+### getParams / setParams
+
+```typescript
+getParams(deep?: boolean): Record<string, unknown>
+setParams(params: Record<string, unknown>): FeatureUnion
+```
+
+## Properties
+
+<ParamField path="transformerList_" type="readonly [string, transformer][]">
+  List of (name, transformer) tuples
+</ParamField>
+
+<ParamField path="namedTransformers_" type="Record<string, transformer>">
+  Access transformers by name
+</ParamField>
+
+## Examples
+
+### Combine Multiple Transformations
+
+```typescript
+import {
+  FeatureUnion,
+  PCA,
+  SelectKBest,
+  f_classif
+} from 'scikitjs';
+
+const X = [
+  [1, 2, 3, 4],
+  [5, 6, 7, 8],
+  [9, 10, 11, 12],
+  [13, 14, 15, 16]
+];
+const y = [0, 0, 1, 1];
+
+// Combine PCA and univariate selection
+const union = new FeatureUnion([
+  ['pca', new PCA({ nComponents: 2 })],
+  ['select', new SelectKBest({ scoreFunc: f_classif, k: 2 })]
+]);
+
+const XTransformed = union.fitTransform(X, y);
+console.log(XTransformed[0].length);  // 4 features (2 from PCA + 2 from SelectKBest)
+```
+
+### Feature Weighting
+
+```typescript
+import { FeatureUnion, PCA, StandardScaler } from 'scikitjs';
+
+const X = [
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9]
+];
+
+// Weight PCA features more heavily
+const union = new FeatureUnion(
+  [
+    ['pca', new PCA({ nComponents: 2 })],
+    ['original', 'passthrough']
+  ],
+  {
+    transformerWeights: {
+      'pca': 2.0,
+      'original': 1.0
+    }
+  }
+);
+
+const XTransformed = union.fitTransform(X);
+// PCA features are multiplied by 2.0
+```
+
+### Multiple Feature Representations
+
+```typescript
+import {
+  FeatureUnion,
+  PolynomialFeatures,
+  StandardScaler
+} from 'scikitjs';
+
+const X = [
+  [1, 2],
+  [3, 4],
+  [5, 6]
+];
+
+// Create both original and polynomial features
+const union = new FeatureUnion([
+  ['original', 'passthrough'],
+  ['poly', new PolynomialFeatures({ degree: 2, includeBias: false })]
+]);
+
+const XTransformed = union.fitTransform(X);
+console.log(XTransformed[0]);
+// [original features + polynomial features]
+```
+
+### In a Pipeline
+
+```typescript
+import {
+  Pipeline,
+  FeatureUnion,
+  PCA,
+  TruncatedSVD,
+  LogisticRegression
+} from 'scikitjs';
+
+const X = [
+  [1, 2, 3, 4],
+  [5, 6, 7, 8],
+  [9, 10, 11, 12],
+  [13, 14, 15, 16]
+];
+const y = [0, 0, 1, 1];
+
+// Combine different dimensionality reduction techniques
+const union = new FeatureUnion([
+  ['pca', new PCA({ nComponents: 2 })],
+  ['svd', new TruncatedSVD({ nComponents: 2 })]
+]);
+
+const pipeline = new Pipeline([
+  ['features', union],
+  ['classifier', new LogisticRegression()]
+]);
+
+pipeline.fit(X, y);
+const predictions = pipeline.predict(X);
+```
+
+### Drop Transformers
+
+```typescript
+import { FeatureUnion, PCA } from 'scikitjs';
+
+const X = [[1, 2], [3, 4], [5, 6]];
+
+// Conditionally include transformers
+const union = new FeatureUnion([
+  ['pca', new PCA({ nComponents: 1 })],
+  ['skip', 'drop'],  // This transformer is dropped
+  ['original', 'passthrough']
+]);
+
+const XTransformed = union.fitTransform(X);
+// Only includes PCA and passthrough features
+```
+
+### Custom Transformer
+
+```typescript
+import { FeatureUnion } from 'scikitjs';
+
+class LogTransformer {
+  fit(X, y) {
+    return this;
+  }
+
+  transform(X) {
+    return X.map(row => row.map(val => Math.log(val + 1)));
+  }
+}
+
+const union = new FeatureUnion([
+  ['log', new LogTransformer()],
+  ['original', 'passthrough']
+]);
+
+const X = [[1, 2], [3, 4], [5, 6]];
+const XTransformed = union.fitTransform(X);
+// Concatenates log-transformed and original features
+```
+
+### Ensemble Feature Engineering
+
+```typescript
+import {
+  Pipeline,
+  FeatureUnion,
+  StandardScaler,
+  PCA,
+  SelectKBest,
+  PolynomialFeatures,
+  RandomForestClassifier
+} from 'scikitjs';
+
+const X = [
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9],
+  [10, 11, 12]
+];
+const y = [0, 0, 1, 1];
+
+// Combine multiple feature engineering strategies
+const featureEngineering = new FeatureUnion([
+  ['pca', new PCA({ nComponents: 2 })],
+  ['poly', new PolynomialFeatures({ degree: 2 })],
+  ['select', new SelectKBest({ k: 2 })]
+]);
+
+const pipeline = new Pipeline([
+  ['scaler', new StandardScaler()],
+  ['features', featureEngineering],
+  ['classifier', new RandomForestClassifier({ nEstimators: 10 })]
+]);
+
+pipeline.fit(X, y);
+```

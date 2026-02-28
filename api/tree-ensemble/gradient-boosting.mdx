@@ -1,0 +1,415 @@
+---
+title: "Gradient Boosting"
+description: "GradientBoostingClassifier and GradientBoostingRegressor API reference"
+---
+
+## GradientBoostingClassifier
+
+Gradient boosting classifier for binary classification. Builds an ensemble of trees sequentially, where each tree corrects errors from the previous ones.
+
+### Constructor
+
+```typescript
+import { GradientBoostingClassifier } from "bun-scikit";
+
+const clf = new GradientBoostingClassifier({
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 3,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  subsample: 1.0,
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="nEstimators" type="number" default="100">
+  Number of boosting stages (trees) to build. More trees can improve performance but increase training time and risk overfitting.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="0.1">
+  Learning rate shrinks the contribution of each tree. Lower values require more trees but often result in better generalization. Typical values: 0.01 to 0.3.
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="3">
+  Maximum depth of each tree. Shallow trees (3-5) are typical for gradient boosting to prevent overfitting.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node.
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node.
+</ParamField>
+
+<ParamField path="subsample" type="number" default="1.0">
+  Fraction of samples to use for fitting each tree. Values < 1.0 enable stochastic gradient boosting, which can improve generalization. Typical values: 0.5 to 1.0.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible subsampling.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the gradient boosting classifier.
+
+```typescript
+clf.fit(X: Matrix, y: Vector): GradientBoostingClassifier
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Binary target values (0 or 1).
+</ParamField>
+
+<Note>
+GradientBoostingClassifier only supports binary classification. For multi-class problems, consider using RandomForestClassifier.
+</Note>
+
+#### predict()
+
+Predict class labels for samples.
+
+```typescript
+clf.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted binary class labels (0 or 1).
+
+#### predictProba()
+
+Predict class probabilities for samples.
+
+```typescript
+clf.predictProba(X: Matrix): Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Matrix of shape [n_samples, 2] with probabilities for each class. Each row is [P(class=0), P(class=1)].
+
+#### decisionFunction()
+
+Compute the decision function (raw scores before sigmoid).
+
+```typescript
+clf.decisionFunction(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to score.
+</ParamField>
+
+**Returns:** Decision function values (logits). Positive values predict class 1, negative values predict class 0.
+
+#### score()
+
+Return the accuracy on the given test data.
+
+```typescript
+clf.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** Accuracy score between 0 and 1.
+
+### Properties
+
+<ParamField path="classes_" type="Vector" readonly>
+  Class labels [0, 1].
+</ParamField>
+
+<ParamField path="estimators_" type="DecisionTreeRegressor[]" readonly>
+  Collection of fitted sub-estimators (trees). Each tree predicts residuals.
+</ParamField>
+
+<ParamField path="init_" type="number | null" readonly>
+  Initial prediction (log-odds of positive class).
+</ParamField>
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Aggregated feature importances across all trees.
+</ParamField>
+
+### Example
+
+```typescript
+import { GradientBoostingClassifier } from "bun-scikit";
+
+// Create classifier with conservative settings
+const clf = new GradientBoostingClassifier({ 
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 3,
+  subsample: 0.8,
+  randomState: 42 
+});
+
+// Binary classification: spam detection
+const X = [
+  [0.2, 0.8, 0.1],  // ham
+  [0.1, 0.7, 0.0],  // ham
+  [0.9, 0.1, 0.8],  // spam
+  [0.8, 0.2, 0.9],  // spam
+  [0.3, 0.6, 0.1],  // ham
+  [0.85, 0.15, 0.7] // spam
+];
+const y = [0, 0, 1, 1, 0, 1];
+
+// Train
+clf.fit(X, y);
+
+// Predict
+const testX = [
+  [0.25, 0.75, 0.05],
+  [0.82, 0.18, 0.75]
+];
+const predictions = clf.predict(testX);
+console.log(predictions); // [0, 1]
+
+// Get probabilities
+const probabilities = clf.predictProba(testX);
+console.log(probabilities);
+// [[0.92, 0.08], [0.15, 0.85]]
+
+// Decision function (raw scores)
+const scores = clf.decisionFunction(testX);
+console.log(scores); // [-2.45, 1.73]
+
+// Feature importances
+console.log("Top features:");
+clf.featureImportances_?.forEach((imp, i) => {
+  console.log(`  Feature ${i}: ${imp.toFixed(4)}`);
+});
+```
+
+### Tuning Guide
+
+Common parameter combinations:
+
+```typescript
+// Fast training, good baseline
+new GradientBoostingClassifier({
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 3
+});
+
+// Better accuracy, slower training
+new GradientBoostingClassifier({
+  nEstimators: 500,
+  learningRate: 0.05,
+  maxDepth: 4,
+  subsample: 0.8
+});
+
+// Prevent overfitting on small datasets
+new GradientBoostingClassifier({
+  nEstimators: 50,
+  learningRate: 0.1,
+  maxDepth: 2,
+  minSamplesLeaf: 5,
+  subsample: 0.7
+});
+```
+
+---
+
+## GradientBoostingRegressor
+
+Gradient boosting regressor for continuous target variables. Builds an ensemble of trees sequentially to minimize prediction error.
+
+### Constructor
+
+```typescript
+import { GradientBoostingRegressor } from "bun-scikit";
+
+const reg = new GradientBoostingRegressor({
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 3,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  subsample: 1.0,
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="nEstimators" type="number" default="100">
+  Number of boosting stages (trees) to build.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="0.1">
+  Learning rate shrinks the contribution of each tree. Lower values require more trees.
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="3">
+  Maximum depth of each tree. Shallow trees are typical for gradient boosting.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node.
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node.
+</ParamField>
+
+<ParamField path="subsample" type="number" default="1.0">
+  Fraction of samples to use for fitting each tree. Values < 1.0 enable stochastic gradient boosting.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible subsampling.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the gradient boosting regressor.
+
+```typescript
+reg.fit(X: Matrix, y: Vector): GradientBoostingRegressor
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Continuous target values.
+</ParamField>
+
+#### predict()
+
+Predict target values for samples.
+
+```typescript
+reg.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted continuous values.
+
+#### score()
+
+Return the R² score on the given test data.
+
+```typescript
+reg.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** R² score (coefficient of determination).
+
+### Properties
+
+<ParamField path="estimators_" type="DecisionTreeRegressor[]" readonly>
+  Collection of fitted sub-estimators (trees).
+</ParamField>
+
+<ParamField path="init_" type="number | null" readonly>
+  Initial prediction (mean of target values).
+</ParamField>
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Aggregated feature importances across all trees.
+</ParamField>
+
+### Example
+
+```typescript
+import { GradientBoostingRegressor } from "bun-scikit";
+
+// Create regressor
+const reg = new GradientBoostingRegressor({ 
+  nEstimators: 200,
+  learningRate: 0.05,
+  maxDepth: 4,
+  subsample: 0.8,
+  randomState: 42 
+});
+
+// Housing price prediction
+const X = [
+  [1500, 3, 10, 5],  // sqft, bedrooms, age, distance
+  [1800, 4, 5, 3],
+  [2400, 4, 8, 7],
+  [1200, 2, 15, 2],
+  [3000, 5, 2, 10],
+  [1600, 3, 12, 4]
+];
+const y = [300000, 380000, 450000, 250000, 550000, 310000];
+
+// Train
+reg.fit(X, y);
+
+// Predict
+const newHouses = [
+  [2000, 3, 7, 5],
+  [1400, 2, 10, 3]
+];
+const prices = reg.predict(newHouses);
+console.log("Predicted prices:");
+prices.forEach((price, i) => {
+  console.log(`  House ${i + 1}: $${price.toFixed(0)}`);
+});
+
+// R² score
+const r2 = reg.score(X, y);
+console.log(`R² score: ${r2.toFixed(4)}`);
+
+// Feature importances
+const features = ["sqft", "bedrooms", "age", "distance"];
+console.log("\nFeature importances:");
+reg.featureImportances_?.forEach((imp, i) => {
+  console.log(`  ${features[i]}: ${imp.toFixed(4)}`);
+});
+```
+
+### Tuning Guide
+
+```typescript
+// Fast training baseline
+new GradientBoostingRegressor({
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 3
+});
+
+// High accuracy (may overfit)
+new GradientBoostingRegressor({
+  nEstimators: 500,
+  learningRate: 0.05,
+  maxDepth: 5,
+  subsample: 0.8
+});
+
+// Robust to noisy data
+new GradientBoostingRegressor({
+  nEstimators: 150,
+  learningRate: 0.08,
+  maxDepth: 3,
+  minSamplesLeaf: 10,
+  subsample: 0.7
+});
+```

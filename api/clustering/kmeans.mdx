@@ -1,0 +1,254 @@
+---
+title: 'KMeans'
+description: 'K-Means clustering algorithm for partitioning data into k clusters'
+---
+
+## Overview
+
+KMeans implements the K-Means clustering algorithm, which partitions data into k clusters by minimizing within-cluster variance. The algorithm iteratively assigns samples to the nearest centroid and updates centroids based on cluster membership.
+
+## Constructor
+
+```typescript
+new KMeans(options?: KMeansOptions)
+```
+
+### Parameters
+
+<ParamField path="options" type="KMeansOptions" default="{}">
+  Configuration options for KMeans clustering
+  
+  <Expandable title="properties">
+    <ParamField path="nClusters" type="number" default="8">
+      Number of clusters to form. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="nInit" type="number" default="10">
+      Number of times the algorithm will run with different centroid seeds. The best result (lowest inertia) is kept. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="300">
+      Maximum number of iterations per initialization. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-4">
+      Relative tolerance for centroid movement to declare convergence. Must be finite and >= 0.
+    </ParamField>
+    
+    <ParamField path="randomState" type="number" optional>
+      Seed for random number generator for reproducible results. If not provided, results may vary between runs.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the KMeans model to the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where rows are samples and columns are features. Must be non-empty with consistent row sizes and finite values.
+</ParamField>
+
+**Returns:** The fitted KMeans instance (for method chaining).
+
+**Throws:** Error if nClusters exceeds sample count or data validation fails.
+
+### predict
+
+Predict cluster labels for new samples.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to predict cluster labels for. Must match the feature count of the training data.
+</ParamField>
+
+**Returns:** Vector of cluster labels (integers from 0 to nClusters-1).
+
+**Throws:** Error if model not fitted or feature mismatch.
+
+### fitPredict
+
+Fit the model and return cluster labels for training data.
+
+```typescript
+fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and predict on.
+</ParamField>
+
+**Returns:** Vector of cluster labels for the training data.
+
+### transform
+
+Transform data to cluster-distance space.
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to transform.
+</ParamField>
+
+**Returns:** Matrix where each row contains Euclidean distances to all cluster centers.
+
+### score
+
+Compute the negative inertia (opposite of within-cluster sum of squares).
+
+```typescript
+score(X: Matrix): number
+```
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to score.
+</ParamField>
+
+**Returns:** Negative inertia value (higher is better).
+
+## Properties
+
+<ParamField path="clusterCenters_" type="Matrix | null">
+  Coordinates of cluster centers after fitting.
+</ParamField>
+
+<ParamField path="labels_" type="Vector | null">
+  Cluster labels for training samples.
+</ParamField>
+
+<ParamField path="inertia_" type="number | null">
+  Sum of squared distances of samples to their closest cluster center.
+</ParamField>
+
+<ParamField path="nIter_" type="number | null">
+  Number of iterations run in the best initialization.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fitting.
+</ParamField>
+
+## Examples
+
+### Basic Clustering
+
+```typescript
+import { KMeans } from 'bun-scikit';
+
+// Create sample data
+const X = [
+  [1.0, 2.0],
+  [1.5, 1.8],
+  [5.0, 8.0],
+  [8.0, 8.0],
+  [1.0, 0.6],
+  [9.0, 11.0]
+];
+
+// Create and fit KMeans model
+const kmeans = new KMeans({ nClusters: 2, randomState: 42 });
+kmeans.fit(X);
+
+console.log('Cluster centers:', kmeans.clusterCenters_);
+console.log('Labels:', kmeans.labels_);
+console.log('Inertia:', kmeans.inertia_);
+```
+
+### Prediction on New Data
+
+```typescript
+import { KMeans } from 'bun-scikit';
+
+const trainData = [
+  [1.0, 2.0],
+  [1.5, 1.8],
+  [5.0, 8.0],
+  [8.0, 8.0]
+];
+
+const kmeans = new KMeans({ nClusters: 2, randomState: 42 });
+kmeans.fit(trainData);
+
+// Predict clusters for new samples
+const newData = [
+  [0.0, 0.0],
+  [9.0, 10.0]
+];
+
+const predictions = kmeans.predict(newData);
+console.log('Predicted clusters:', predictions);
+```
+
+### Distance Transformation
+
+```typescript
+import { KMeans } from 'bun-scikit';
+
+const X = [
+  [1.0, 2.0],
+  [1.5, 1.8],
+  [5.0, 8.0],
+  [8.0, 8.0]
+];
+
+const kmeans = new KMeans({ nClusters: 2, randomState: 42 });
+kmeans.fit(X);
+
+// Transform to cluster distance space
+const distances = kmeans.transform(X);
+console.log('Distances to centroids:', distances);
+// Output: [[d1_to_c1, d1_to_c2], [d2_to_c1, d2_to_c2], ...]
+```
+
+### Multiple Initializations
+
+```typescript
+import { KMeans } from 'bun-scikit';
+
+const X = [
+  [1.0, 2.0], [1.5, 1.8], [5.0, 8.0],
+  [8.0, 8.0], [1.0, 0.6], [9.0, 11.0]
+];
+
+// Run with 20 different initializations
+const kmeans = new KMeans({
+  nClusters: 3,
+  nInit: 20,
+  maxIter: 500,
+  randomState: 42
+});
+
+kmeans.fit(X);
+console.log('Best inertia after 20 runs:', kmeans.inertia_);
+console.log('Iterations used:', kmeans.nIter_);
+```
+
+## Algorithm Details
+
+KMeans uses the standard Lloyd's algorithm:
+
+1. **Initialization**: Randomly select k samples as initial centroids
+2. **Assignment**: Assign each sample to nearest centroid
+3. **Update**: Recalculate centroids as mean of assigned samples
+4. **Convergence**: Repeat steps 2-3 until centroid movement < tolerance or max iterations reached
+
+The algorithm runs multiple times with different initializations (controlled by `nInit`) and returns the solution with the lowest inertia.
+
+## Notes
+
+- KMeans assumes clusters are spherical and equally sized
+- Sensitive to initial centroid placement (use multiple initializations)
+- Scales well to large datasets
+- Use `randomState` for reproducible results
+- Empty clusters are handled by reassigning a random sample

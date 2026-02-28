@@ -1,0 +1,277 @@
+---
+title: VotingClassifier
+description: Ensemble classifier using majority voting
+---
+
+VotingClassifier combines multiple classification algorithms using majority voting.
+
+## Constructor
+
+```typescript
+import { VotingClassifier } from 'scikitjs';
+
+const voting = new VotingClassifier(estimators, options);
+```
+
+<ParamField path="estimators" type="[string, estimator | () => estimator][]" required>
+  List of (name, estimator) tuples. Estimators can be instances or factory functions.
+</ParamField>
+
+<ParamField path="options.voting" type="'hard' | 'soft'" default="'hard'">
+  Voting strategy:
+  - `'hard'`: uses predicted class labels for majority rule voting
+  - `'soft'`: predicts class label based on sum of predicted probabilities (requires estimators with `predictProba`)
+</ParamField>
+
+<ParamField path="options.weights" type="number[]">
+  Sequence of weights for each estimator. If None, uses uniform weights.
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit all estimators.
+
+```typescript
+fit(X: number[][], y: number[], sampleWeight?: number[]): VotingClassifier
+```
+
+### predict
+
+Predict class labels using majority voting.
+
+```typescript
+predict(X: number[][]): number[]
+```
+
+### predictProba
+
+Predict class probabilities (soft voting only).
+
+```typescript
+predictProba(X: number[][]): number[][]
+```
+
+### score
+
+Return accuracy score.
+
+```typescript
+score(X: number[][], y: number[]): number
+```
+
+## Properties
+
+<ParamField path="classes_" type="number[]">
+  The classes labels
+</ParamField>
+
+<ParamField path="estimators_" type="[string, estimator][]">
+  The fitted sub-estimators
+</ParamField>
+
+<ParamField path="namedEstimators_" type="Record<string, estimator>">
+  Access estimators by name
+</ParamField>
+
+## Examples
+
+### Hard Voting
+
+```typescript
+import {
+  VotingClassifier,
+  LogisticRegression,
+  DecisionTreeClassifier,
+  KNeighborsClassifier
+} from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Create voting classifier with hard voting
+const voting = new VotingClassifier(
+  [
+    ['lr', new LogisticRegression()],
+    ['dt', new DecisionTreeClassifier()],
+    ['knn', new KNeighborsClassifier({ nNeighbors: 3 })]
+  ],
+  { voting: 'hard' }
+);
+
+voting.fit(X, y);
+
+const predictions = voting.predict([[3.5, 4.5], [6.5, 7.5]]);
+console.log(predictions); // [0, 1]
+
+const accuracy = voting.score(X, y);
+console.log(accuracy);
+```
+
+### Soft Voting
+
+```typescript
+import {
+  VotingClassifier,
+  LogisticRegression,
+  RandomForestClassifier,
+  GaussianNB
+} from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Soft voting averages predicted probabilities
+const voting = new VotingClassifier(
+  [
+    ['lr', new LogisticRegression()],
+    ['rf', new RandomForestClassifier({ nEstimators: 10 })],
+    ['nb', new GaussianNB()]
+  ],
+  { voting: 'soft' }
+);
+
+voting.fit(X, y);
+
+const probabilities = voting.predictProba([[3.5, 4.5], [6.5, 7.5]]);
+console.log(probabilities);
+// [[0.85, 0.15],
+//  [0.12, 0.88]]
+```
+
+### Weighted Voting
+
+```typescript
+import {
+  VotingClassifier,
+  LogisticRegression,
+  SVC,
+  DecisionTreeClassifier
+} from 'scikitjs';
+
+const X = [[1, 2], [2, 3], [3, 4], [4, 5]];
+const y = [0, 0, 1, 1];
+
+// Give more weight to certain estimators
+const voting = new VotingClassifier(
+  [
+    ['lr', new LogisticRegression()],
+    ['svc', new SVC({ probability: true })],
+    ['dt', new DecisionTreeClassifier()]
+  ],
+  {
+    voting: 'soft',
+    weights: [2, 2, 1]  // LR and SVC have double weight
+  }
+);
+
+voting.fit(X, y);
+const predictions = voting.predict(X);
+```
+
+### Using Factory Functions
+
+```typescript
+import { VotingClassifier, RandomForestClassifier } from 'scikitjs';
+
+// Factory functions create fresh instances for each fit
+const voting = new VotingClassifier([
+  ['rf1', () => new RandomForestClassifier({ nEstimators: 10, randomState: 42 })],
+  ['rf2', () => new RandomForestClassifier({ nEstimators: 20, randomState: 43 })],
+  ['rf3', () => new RandomForestClassifier({ nEstimators: 15, randomState: 44 })]
+]);
+
+voting.fit(X, y);
+```
+
+### Cross-Validation
+
+```typescript
+import {
+  VotingClassifier,
+  LogisticRegression,
+  SVC,
+  crossValScore
+} from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+const voting = new VotingClassifier([
+  ['lr', () => new LogisticRegression()],
+  ['svc', () => new SVC()]
+]);
+
+const scores = crossValScore(voting, X, y, { cv: 3 });
+console.log('CV Scores:', scores);
+console.log('Mean:', scores.reduce((a, b) => a + b) / scores.length);
+```
+
+### Compare with Individual Models
+
+```typescript
+import {
+  VotingClassifier,
+  LogisticRegression,
+  DecisionTreeClassifier,
+  SVC
+} from 'scikitjs';
+
+const XTrain = [[1, 2], [2, 3], [3, 4], [4, 5]];
+const yTrain = [0, 0, 1, 1];
+const XTest = [[1.5, 2.5], [3.5, 4.5]];
+const yTest = [0, 1];
+
+// Individual models
+const lr = new LogisticRegression();
+lr.fit(XTrain, yTrain);
+console.log('LR accuracy:', lr.score(XTest, yTest));
+
+const dt = new DecisionTreeClassifier();
+dt.fit(XTrain, yTrain);
+console.log('DT accuracy:', dt.score(XTest, yTest));
+
+const svc = new SVC();
+svc.fit(XTrain, yTrain);
+console.log('SVC accuracy:', svc.score(XTest, yTest));
+
+// Voting ensemble
+const voting = new VotingClassifier([
+  ['lr', new LogisticRegression()],
+  ['dt', new DecisionTreeClassifier()],
+  ['svc', new SVC()]
+]);
+voting.fit(XTrain, yTrain);
+console.log('Voting accuracy:', voting.score(XTest, yTest));
+```
+
+### Access Individual Estimators
+
+```typescript
+const voting = new VotingClassifier([
+  ['lr', new LogisticRegression()],
+  ['svc', new SVC()]
+]);
+
+voting.fit(X, y);
+
+// Access by name
+const lr = voting.namedEstimators_['lr'];
+console.log('LR coefficients:', lr.coef_);
+
+// Iterate over all estimators
+for (const [name, estimator] of voting.estimators_) {
+  const score = estimator.score(XTest, yTest);
+  console.log(`${name}: ${score}`);
+}
+```

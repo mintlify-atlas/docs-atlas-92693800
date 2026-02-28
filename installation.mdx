@@ -1,0 +1,215 @@
+---
+title: Installation
+description: Install bun-scikit and configure native Zig acceleration
+---
+
+# Installation
+
+Get started with bun-scikit in your Bun project.
+
+## Requirements
+
+<Note>
+  **Bun 1.3.9 or later** is required to run bun-scikit.
+</Note>
+
+Check your Bun version:
+
+```bash
+bun --version
+```
+
+If you need to install or upgrade Bun:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+## Install bun-scikit
+
+<Steps>
+  <Step title="Add the package">
+    Install bun-scikit using Bun's package manager:
+
+    ```bash
+    bun add bun-scikit
+    ```
+
+    This installs the latest stable version from npm.
+  </Step>
+
+  <Step title="Verify installation">
+    Create a test file `test.ts` to verify the installation:
+
+    ```typescript
+    import { LinearRegression } from "bun-scikit";
+
+    const model = new LinearRegression();
+    console.log("bun-scikit installed successfully!");
+    ```
+
+    Run it:
+
+    ```bash
+    bun run test.ts
+    ```
+  </Step>
+
+  <Step title="Check Zig backend (optional)">
+    Verify that native Zig acceleration is working for tree-based models:
+
+    ```typescript
+    import { DecisionTreeClassifier } from "bun-scikit";
+
+    const X = [
+      [0, 0],
+      [0, 1],
+      [1, 0],
+      [2, 2],
+      [2, 3],
+      [3, 2],
+    ];
+    const y = [0, 0, 0, 1, 1, 1];
+
+    const tree = new DecisionTreeClassifier({ maxDepth: 3, randomState: 42 });
+    tree.fit(X, y);
+    console.log("DecisionTree backend:", tree.fitBackend_);
+    ```
+
+    Expected output:
+
+    ```
+    DecisionTree backend: zig
+    ```
+
+    <Note>
+      If you see `fitBackend_: "zig"`, native acceleration is enabled and working.
+    </Note>
+  </Step>
+</Steps>
+
+## Native Binaries
+
+bun-scikit includes prebuilt native binaries for optimal performance:
+
+<CardGroup cols={2}>
+  <Card title="Linux x64" icon="linux">
+    Prebuilt binaries included
+  </Card>
+  <Card title="Windows x64" icon="windows">
+    Prebuilt binaries included
+  </Card>
+  <Card title="macOS" icon="apple">
+    Coming soon
+  </Card>
+  <Card title="Other Platforms" icon="server">
+    JavaScript fallback available
+  </Card>
+</CardGroup>
+
+<Warning>
+  **No build step required** - Prebuilt binaries work out of the box. No need to run `bun pm trust` or build from source.
+</Warning>
+
+## Configuration (Advanced)
+
+For advanced users, bun-scikit supports several environment variables to customize native acceleration:
+
+### Native Bridge Mode
+
+```bash
+export BUN_SCIKIT_NATIVE_BRIDGE=node-api  # or 'ffi'
+```
+
+- `node-api`: Use Node-API bridge (default)
+- `ffi`: Use FFI bridge
+
+### Custom Binary Paths
+
+```bash
+# Custom Node addon path
+export BUN_SCIKIT_NODE_ADDON=/path/to/bun_scikit_node_addon.node
+
+# Custom Zig library path
+export BUN_SCIKIT_ZIG_LIB=/path/to/bun_scikit_kernels.so
+```
+
+### Tree Backend Selection
+
+```bash
+# Force JavaScript fallback for tree-based models
+export BUN_SCIKIT_TREE_BACKEND=js
+
+# Use Zig backend (default)
+export BUN_SCIKIT_TREE_BACKEND=zig
+```
+
+<Note>
+  The default `zig` backend provides significant performance improvements for `DecisionTreeClassifier`, `DecisionTreeRegressor`, `RandomForestClassifier`, and `RandomForestRegressor`.
+</Note>
+
+## TypeScript Configuration
+
+bun-scikit is fully typed. If you're using TypeScript, no additional configuration is needed:
+
+```json
+{
+  "compilerOptions": {
+    "types": ["bun-types"]
+  }
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Module not found error">
+    Make sure you're using Bun 1.3.9 or later:
+
+    ```bash
+    bun --version
+    ```
+
+    Clear your cache and reinstall:
+
+    ```bash
+    rm -rf node_modules bun.lockb
+    bun install
+    ```
+  </Accordion>
+
+  <Accordion title="Tree backend showing 'js' instead of 'zig'">
+    This can happen if:
+
+    1. You're on an unsupported platform (macOS prebuilts not yet available)
+    2. The native binaries failed to load
+    3. You set `BUN_SCIKIT_TREE_BACKEND=js`
+
+    The JavaScript fallback still works correctly, just without native acceleration.
+  </Accordion>
+
+  <Accordion title="Type errors with TypeScript">
+    Ensure you have the latest Bun types:
+
+    ```bash
+    bun add -d @types/bun
+    ```
+
+    Run type checking:
+
+    ```bash
+    bunx tsc --noEmit
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Train your first model
+  </Card>
+  <Card title="API Reference" icon="code" href="/api">
+    Explore the full API
+  </Card>
+</CardGroup>

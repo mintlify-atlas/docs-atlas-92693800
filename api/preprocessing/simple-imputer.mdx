@@ -1,0 +1,249 @@
+---
+title: SimpleImputer
+description: Imputation transformer for completing missing values
+---
+
+## Overview
+
+SimpleImputer replaces missing values (NaN) using simple strategies based on the non-missing values in each column.
+
+## Constructor
+
+```typescript
+new SimpleImputer(options?: SimpleImputerOptions)
+```
+
+<ParamField path="options.strategy" type="'mean' | 'median' | 'most_frequent' | 'constant'" default="'mean'">
+  The imputation strategy:
+  - `'mean'`: Replace missing values with the mean of each column
+  - `'median'`: Replace missing values with the median of each column
+  - `'most_frequent'`: Replace missing values with the most frequent value in each column
+  - `'constant'`: Replace missing values with `fillValue`
+</ParamField>
+
+<ParamField path="options.fillValue" type="number">
+  Value to use when `strategy='constant'`. Defaults to 0 if not specified.
+</ParamField>
+
+## Properties
+
+<ParamField path="statistics_" type="Vector | null">
+  The imputation fill value for each feature. Computed during fit.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Fit the imputer on X by computing the statistics for each feature.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix. Can contain NaN values to indicate missing data.
+</ParamField>
+
+**Returns:** `this` - The fitted imputer instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Impute all missing values in X.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to impute. Can contain NaN values.
+</ParamField>
+
+**Returns:** `Matrix` - Data with missing values replaced.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and impute.
+</ParamField>
+
+**Returns:** `Matrix` - Imputed data.
+
+## Example: Mean Imputation
+
+```typescript
+import { SimpleImputer } from 'bun-scikit';
+
+// Data with missing values (NaN)
+const X = [
+  [1, 2],
+  [NaN, 3],
+  [7, 6],
+  [4, NaN]
+];
+
+// Mean imputation (default)
+const imputer = new SimpleImputer({ strategy: 'mean' });
+const XImputed = imputer.fitTransform(X);
+
+console.log('Statistics:', imputer.statistics_);
+// Output: Statistics: [4, 3.667]
+// Column 0 mean: (1 + 7 + 4) / 3 = 4
+// Column 1 mean: (2 + 3 + 6) / 3 = 3.667
+
+console.log('Imputed:', XImputed);
+// Output: Imputed:
+// [[1, 2],
+//  [4, 3],      // NaN replaced with 4
+//  [7, 6],
+//  [4, 3.667]]  // NaN replaced with 3.667
+```
+
+## Example: Median Imputation
+
+```typescript
+import { SimpleImputer } from 'bun-scikit';
+
+const X = [
+  [1, 2],
+  [NaN, 3],
+  [7, 6],
+  [100, NaN]  // Outlier
+];
+
+// Median is more robust to outliers
+const imputer = new SimpleImputer({ strategy: 'median' });
+const XImputed = imputer.fitTransform(X);
+
+console.log('Statistics (median):', imputer.statistics_);
+// Output: Statistics (median): [4, 3]
+// Column 0 median: median([1, 7, 100]) = 7
+// Column 1 median: median([2, 3, 6]) = 3
+```
+
+## Example: Most Frequent Imputation
+
+```typescript
+import { SimpleImputer } from 'bun-scikit';
+
+// Categorical data encoded as numbers
+const X = [
+  [1, 2],
+  [2, 2],
+  [NaN, 3],
+  [2, NaN],
+  [1, 2]
+];
+
+const imputer = new SimpleImputer({ strategy: 'most_frequent' });
+const XImputed = imputer.fitTransform(X);
+
+console.log('Statistics (most frequent):', imputer.statistics_);
+// Output: Statistics (most frequent): [2, 2]
+// Column 0: 2 appears 2 times, 1 appears 2 times -> 1 (tie: choose smaller)
+// Column 1: 2 appears 3 times, 3 appears 1 time -> 2
+
+console.log('Imputed:', XImputed);
+// NaN values replaced with most frequent value
+```
+
+## Example: Constant Imputation
+
+```typescript
+import { SimpleImputer } from 'bun-scikit';
+
+const X = [
+  [1, 2],
+  [NaN, 3],
+  [7, NaN]
+];
+
+// Replace all missing with -1
+const imputer = new SimpleImputer({
+  strategy: 'constant',
+  fillValue: -1
+});
+
+const XImputed = imputer.fitTransform(X);
+
+console.log('Imputed:', XImputed);
+// Output: Imputed:
+// [[1, 2],
+//  [-1, 3],   // NaN replaced with -1
+//  [7, -1]]   // NaN replaced with -1
+```
+
+## Example: Pipeline with Scaling
+
+```typescript
+import { SimpleImputer, StandardScaler } from 'bun-scikit';
+
+const XTrain = [
+  [1, 2],
+  [NaN, 4],
+  [3, 6],
+  [4, NaN]
+];
+
+const XTest = [
+  [2, NaN],
+  [NaN, 5]
+];
+
+// Step 1: Impute missing values
+const imputer = new SimpleImputer({ strategy: 'mean' });
+const XTrainImputed = imputer.fitTransform(XTrain);
+const XTestImputed = imputer.transform(XTest);
+
+// Step 2: Scale features
+const scaler = new StandardScaler();
+const XTrainScaled = scaler.fitTransform(XTrainImputed);
+const XTestScaled = scaler.transform(XTestImputed);
+
+console.log('Test data after imputation and scaling:', XTestScaled);
+```
+
+## Example: All Missing Column
+
+```typescript
+import { SimpleImputer } from 'bun-scikit';
+
+const X = [
+  [1, NaN],
+  [2, NaN],
+  [3, NaN]
+];
+
+// Mean/median/most_frequent will error on all-missing column
+try {
+  const imputer = new SimpleImputer({ strategy: 'mean' });
+  imputer.fit(X);
+} catch (error) {
+  console.error(error.message);
+  // Output: Feature at index 1 has only missing values...
+}
+
+// Use constant strategy for all-missing columns
+const imputer = new SimpleImputer({
+  strategy: 'constant',
+  fillValue: 0
+});
+const XImputed = imputer.fitTransform(X);
+console.log('Imputed with constant:', XImputed);
+// Output: [[1, 0], [2, 0], [3, 0]]
+```
+
+## Notes
+
+- Missing values are represented as NaN (not null or undefined)
+- Statistics are computed only from non-missing values
+- For columns with all missing values, use `strategy='constant'`
+- The imputer must be fitted before calling `transform()`
+- Non-missing values must be finite (no Infinity)
+- Typically used as the first step in a preprocessing pipeline

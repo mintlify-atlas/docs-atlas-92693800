@@ -1,0 +1,161 @@
+---
+title: Ridge
+description: Ridge regression with L2 regularization
+---
+
+## Overview
+
+`Ridge` implements linear regression with L2 regularization. The regularization term penalizes large coefficients, which helps prevent overfitting and improves model generalization. Ridge uses a closed-form solution for efficient fitting.
+
+## Constructor
+
+```typescript
+import { Ridge } from "bun-scikit";
+
+const model = new Ridge(options);
+```
+
+### Parameters
+
+<ParamField path="options" type="RidgeOptions" default="{}">
+  Configuration options for the model
+  
+  <Expandable title="properties">
+    <ParamField path="alpha" type="number" default="1">
+      Regularization strength. Higher values specify stronger regularization:
+      - `alpha = 0`: Equivalent to ordinary least squares
+      - `alpha > 0`: Adds L2 penalty (sum of squared coefficients)
+    </ParamField>
+    
+    <ParamField path="fitIntercept" type="boolean" default="true">
+      Whether to calculate the intercept for this model
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the ridge regression model using training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+**Parameters:**
+- `X`: Training data matrix of shape `[nSamples, nFeatures]`
+- `y`: Target values vector of length `nSamples`
+- `sampleWeight`: Optional sample weights (not currently used)
+
+**Returns:** The fitted model instance
+
+**Example:**
+```typescript
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1, 2, 3, 4, 5];
+
+const ridge = new Ridge({ alpha: 1 });
+ridge.fit(X, y);
+```
+
+### predict
+
+Predict using the ridge regression model.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+**Parameters:**
+- `X`: Samples matrix of shape `[nSamples, nFeatures]`
+
+**Returns:** Predicted values vector of length `nSamples`
+
+**Example:**
+```typescript
+const predictions = ridge.predict([[2.5]]);
+console.log(predictions[0]); // Predicted value
+```
+
+### score
+
+Return the coefficient of determination (R² score) of the prediction.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+**Parameters:**
+- `X`: Test samples matrix
+- `y`: True target values
+
+**Returns:** R² score (coefficient of determination)
+
+## Attributes
+
+After fitting, the following attributes are available:
+
+<ParamField path="coef_" type="Vector">
+  Estimated coefficients for the ridge regression problem
+</ParamField>
+
+<ParamField path="intercept_" type="number">
+  Independent term in the linear model
+</ParamField>
+
+## Complete Example
+
+```typescript
+import { Ridge } from "bun-scikit";
+
+// Training data
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1, 2, 3, 4, 5];
+
+// Create and fit the model
+const ridge = new Ridge({ alpha: 1 });
+ridge.fit(X, y);
+
+// Evaluate the model
+const r2 = ridge.score(X, y);
+console.log("R² score:", r2); // >0.98
+
+// Make predictions
+const predictions = ridge.predict(X);
+console.log("Predictions:", predictions);
+
+// Check coefficients
+console.log("Coefficients:", ridge.coef_);
+console.log("Intercept:", ridge.intercept_);
+```
+
+## Comparison Example
+
+```typescript
+import { Ridge, LinearRegression } from "bun-scikit";
+
+// Compare Ridge with different alpha values
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1.1, 1.9, 3.1, 4.1, 4.9];
+
+const models = [
+  new LinearRegression(),
+  new Ridge({ alpha: 0.1 }),
+  new Ridge({ alpha: 1.0 }),
+  new Ridge({ alpha: 10.0 }),
+];
+
+models.forEach(model => {
+  model.fit(X, y);
+  const r2 = model.score(X, y);
+  console.log(`${model.constructor.name} R²: ${r2.toFixed(4)}`);
+});
+```
+
+## Notes
+
+- Ridge regression uses a closed-form solution, making it very fast to fit.
+- The `alpha` parameter controls the trade-off between fitting the training data and keeping the coefficients small.
+- Ridge never sets coefficients exactly to zero (unlike Lasso). For feature selection, consider [Lasso](/api/linear-models/lasso) or [ElasticNet](/api/linear-models/elastic-net).
+- For automatic selection of the best `alpha` value, see `RidgeCV`.

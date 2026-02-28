@@ -1,0 +1,331 @@
+---
+title: StackingClassifier
+description: Ensemble classifier using stacked generalization
+---
+
+StackingClassifier stacks the output of individual estimators and uses a final estimator to compute predictions.
+
+## Constructor
+
+```typescript
+import { StackingClassifier } from 'scikitjs';
+
+const stacking = new StackingClassifier(estimators, finalEstimator, options);
+```
+
+<ParamField path="estimators" type="[string, estimator | () => estimator][]" required>
+  Base estimators to be stacked. Can be instances or factory functions.
+</ParamField>
+
+<ParamField path="finalEstimator" type="estimator | () => estimator" required>
+  Final estimator trained on the base estimators' predictions.
+</ParamField>
+
+<ParamField path="options.cv" type="number" default="5">
+  Number of cross-validation folds for generating meta-features.
+</ParamField>
+
+<ParamField path="options.passthrough" type="boolean" default="false">
+  If true, original features are concatenated with base estimator predictions.
+</ParamField>
+
+<ParamField path="options.stackMethod" type="'auto' | 'predict' | 'predictProba'" default="'auto'">
+  Method for base estimators:
+  - `'auto'`: uses `predictProba` if available, otherwise `predict`
+  - `'predict'`: uses predicted class labels
+  - `'predictProba'`: uses predicted probabilities
+</ParamField>
+
+<ParamField path="options.randomState" type="number" default="42">
+  Random state for cross-validation splitting.
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit base estimators and final estimator.
+
+```typescript
+fit(X: number[][], y: number[], sampleWeight?: number[]): StackingClassifier
+```
+
+### predict
+
+Predict class labels.
+
+```typescript
+predict(X: number[][]): number[]
+```
+
+### predictProba
+
+Predict class probabilities.
+
+```typescript
+predictProba(X: number[][]): number[][]
+```
+
+### score
+
+Return accuracy score.
+
+```typescript
+score(X: number[][], y: number[]): number
+```
+
+## Properties
+
+<ParamField path="classes_" type="number[]">
+  The classes labels
+</ParamField>
+
+<ParamField path="estimators_" type="[string, estimator][]">
+  The fitted base estimators
+</ParamField>
+
+<ParamField path="finalEstimator_" type="estimator">
+  The fitted final estimator
+</ParamField>
+
+## Examples
+
+### Basic Stacking
+
+```typescript
+import {
+  StackingClassifier,
+  LogisticRegression,
+  DecisionTreeClassifier,
+  KNeighborsClassifier
+} from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9],
+  [9, 10], [10, 11]
+];
+const y = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
+
+// Stack multiple base estimators
+const stacking = new StackingClassifier(
+  [
+    ['dt', new DecisionTreeClassifier()],
+    ['knn', new KNeighborsClassifier({ nNeighbors: 3 })],
+    ['lr_base', new LogisticRegression()]
+  ],
+  new LogisticRegression()  // Final estimator
+);
+
+stacking.fit(X, y);
+
+const predictions = stacking.predict([[3.5, 4.5], [7.5, 8.5]]);
+console.log(predictions); // [0, 1]
+
+const probabilities = stacking.predictProba([[3.5, 4.5]]);
+console.log(probabilities); // [[0.85, 0.15]]
+```
+
+### With Passthrough
+
+```typescript
+import {
+  StackingClassifier,
+  RandomForestClassifier,
+  GradientBoostingClassifier,
+  LogisticRegression
+} from 'scikitjs';
+
+const X = [
+  [1, 2, 3], [2, 3, 4], [3, 4, 5], [4, 5, 6],
+  [5, 6, 7], [6, 7, 8], [7, 8, 9], [8, 9, 10]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Include original features with meta-features
+const stacking = new StackingClassifier(
+  [
+    ['rf', new RandomForestClassifier({ nEstimators: 10 })],
+    ['gb', new GradientBoostingClassifier({ nEstimators: 10 })]
+  ],
+  new LogisticRegression(),
+  { passthrough: true }  // Original features included
+);
+
+stacking.fit(X, y);
+const predictions = stacking.predict(X);
+```
+
+### Custom Stack Method
+
+```typescript
+import {
+  StackingClassifier,
+  RandomForestClassifier,
+  SVC,
+  LogisticRegression
+} from 'scikitjs';
+
+// Force use of predict instead of predictProba
+const stacking = new StackingClassifier(
+  [
+    ['rf', new RandomForestClassifier({ nEstimators: 10 })],
+    ['svc', new SVC()]
+  ],
+  new LogisticRegression(),
+  { stackMethod: 'predict' }
+);
+
+stacking.fit(X, y);
+```
+
+### Cross-Validation Splits
+
+```typescript
+import { StackingClassifier, DecisionTreeClassifier, SVC } from 'scikitjs';
+
+// Use 10-fold CV for meta-feature generation
+const stacking = new StackingClassifier(
+  [
+    ['dt1', () => new DecisionTreeClassifier({ maxDepth: 5 })],
+    ['dt2', () => new DecisionTreeClassifier({ maxDepth: 10 })],
+    ['svc', () => new SVC()]
+  ],
+  () => new LogisticRegression(),
+  { cv: 10, randomState: 42 }
+);
+
+stacking.fit(X, y);
+```
+
+### Multi-Layer Stacking
+
+```typescript
+import {
+  StackingClassifier,
+  RandomForestClassifier,
+  GradientBoostingClassifier,
+  LogisticRegression,
+  SVC
+} from 'scikitjs';
+
+// First layer
+const layer1 = new StackingClassifier(
+  [
+    ['rf', new RandomForestClassifier({ nEstimators: 10 })],
+    ['gb', new GradientBoostingClassifier({ nEstimators: 10 })]
+  ],
+  new LogisticRegression()
+);
+
+// Second layer
+const layer2 = new StackingClassifier(
+  [
+    ['layer1', layer1],
+    ['svc', new SVC({ probability: true })]
+  ],
+  new LogisticRegression()
+);
+
+layer2.fit(X, y);
+const predictions = layer2.predict(XTest);
+```
+
+### Heterogeneous Ensemble
+
+```typescript
+import {
+  StackingClassifier,
+  LogisticRegression,
+  DecisionTreeClassifier,
+  KNeighborsClassifier,
+  GaussianNB,
+  SVC
+} from 'scikitjs';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Combine diverse base learners
+const stacking = new StackingClassifier(
+  [
+    ['lr', new LogisticRegression()],
+    ['dt', new DecisionTreeClassifier()],
+    ['knn', new KNeighborsClassifier({ nNeighbors: 3 })],
+    ['nb', new GaussianNB()],
+    ['svc', new SVC({ probability: true })]
+  ],
+  new RandomForestClassifier({ nEstimators: 50 })
+);
+
+stacking.fit(X, y);
+console.log('Training score:', stacking.score(X, y));
+```
+
+### Compare with Voting
+
+```typescript
+import {
+  StackingClassifier,
+  VotingClassifier,
+  RandomForestClassifier,
+  GradientBoostingClassifier,
+  LogisticRegression
+} from 'scikitjs';
+
+const estimators = [
+  ['rf', () => new RandomForestClassifier({ nEstimators: 10 })],
+  ['gb', () => new GradientBoostingClassifier({ nEstimators: 10 })]
+];
+
+// Voting ensemble
+const voting = new VotingClassifier(estimators, { voting: 'soft' });
+voting.fit(XTrain, yTrain);
+console.log('Voting score:', voting.score(XTest, yTest));
+
+// Stacking ensemble
+const stacking = new StackingClassifier(
+  estimators,
+  new LogisticRegression()
+);
+stacking.fit(XTrain, yTrain);
+console.log('Stacking score:', stacking.score(XTest, yTest));
+```
+
+### Feature Importance Analysis
+
+```typescript
+import {
+  StackingClassifier,
+  RandomForestClassifier,
+  GradientBoostingClassifier,
+  LogisticRegression
+} from 'scikitjs';
+
+const stacking = new StackingClassifier(
+  [
+    ['rf', new RandomForestClassifier({ nEstimators: 10 })],
+    ['gb', new GradientBoostingClassifier({ nEstimators: 10 })]
+  ],
+  new LogisticRegression(),
+  { passthrough: true }
+);
+
+stacking.fit(X, y);
+
+// Access base estimators
+for (const [name, estimator] of stacking.estimators_) {
+  if (estimator.featureImportances_) {
+    console.log(`${name} importance:`, estimator.featureImportances_);
+  }
+}
+
+// Final estimator coefficients
+const finalEst = stacking.finalEstimator_;
+if (finalEst.coef_) {
+  console.log('Meta-learner coefficients:', finalEst.coef_);
+}
+```

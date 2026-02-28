@@ -1,0 +1,147 @@
+---
+title: NMF
+description: Non-negative Matrix Factorization for parts-based representation
+---
+
+## Overview
+
+NMF (Non-negative Matrix Factorization) decomposes non-negative data into non-negative components, making it ideal for parts-based representations where negative values don't make sense (e.g., images, text).
+
+## Constructor
+
+```typescript
+new NMF(options?: NMFOptions)
+```
+
+<ParamField path="options" type="NMFOptions">
+  Configuration options for NMF
+  
+  <Expandable title="properties">
+    <ParamField path="nComponents" type="number" default="2" optional>
+      Number of components to extract.
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="400" optional>
+      Maximum number of iterations for multiplicative update.
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-5" optional>
+      Convergence tolerance for stopping criterion.
+    </ParamField>
+    
+    <ParamField path="randomState" type="number" optional>
+      Seed for random initialization for reproducible results.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Learn NMF components from non-negative training data.
+
+<ParamField path="X" type="Matrix" required>
+  Non-negative training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** The fitted NMF instance
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Transform data to component representation.
+
+<ParamField path="X" type="Matrix" required>
+  Non-negative data to transform of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and transform data in one step.
+
+<ParamField path="X" type="Matrix" required>
+  Non-negative training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### inverseTransform
+
+```typescript
+inverseTransform(W: Matrix): Matrix
+```
+
+Reconstruct data from component representation.
+
+<ParamField path="W" type="Matrix" required>
+  Component weights of shape [nSamples, nComponents]
+</ParamField>
+
+**Returns:** Reconstructed data of shape [nSamples, nFeatures]
+
+## Properties
+
+<ParamField path="components_" type="Matrix | null">
+  Non-negative components (basis vectors), shape [nComponents, nFeatures]
+</ParamField>
+
+<ParamField path="reconstructionErr_" type="number | null">
+  Frobenius norm of the reconstruction error
+</ParamField>
+
+<ParamField path="nIter_" type="number | null">
+  Number of iterations run for convergence
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit
+</ParamField>
+
+<ParamField path="nComponents_" type="number | null">
+  Number of components extracted
+</ParamField>
+
+## Example
+
+```typescript
+import { NMF } from '@elucidate/elucidate';
+
+// Non-negative data (e.g., image patches, word counts)
+const data = [
+  [1, 2, 0, 3],
+  [4, 0, 5, 1],
+  [0, 3, 2, 4],
+  [2, 1, 3, 0],
+  [3, 4, 1, 2],
+];
+
+const nmf = new NMF({ 
+  nComponents: 2,
+  randomState: 42,
+  maxIter: 500 
+});
+
+const transformed = nmf.fitTransform(data);
+console.log('Component weights:', transformed);
+console.log('Basis components:', nmf.components_);
+console.log('Reconstruction error:', nmf.reconstructionErr_);
+console.log('Converged in', nmf.nIter_, 'iterations');
+
+// Reconstruct data
+const reconstructed = nmf.inverseTransform(transformed);
+console.log('Reconstructed:', reconstructed);
+```

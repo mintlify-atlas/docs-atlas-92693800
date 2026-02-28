@@ -1,0 +1,210 @@
+---
+title: OneHotEncoder
+description: Encode categorical features as a one-hot numeric array
+---
+
+## Overview
+
+OneHotEncoder transforms categorical features into a one-hot encoded representation. Each categorical feature is converted into multiple binary features, one for each category.
+
+## Constructor
+
+```typescript
+new OneHotEncoder(options?: OneHotEncoderOptions)
+```
+
+<ParamField path="options.handleUnknown" type="'error' | 'ignore'" default="'error'">
+  How to handle unknown categories during transform:
+  - `'error'`: Raise an error if an unknown category is found
+  - `'ignore'`: Set all one-hot values to 0 for unknown categories
+</ParamField>
+
+## Properties
+
+<ParamField path="categories_" type="number[][] | null">
+  The categories for each feature. Each inner array contains the sorted unique values for that feature.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit.
+</ParamField>
+
+<ParamField path="nOutputFeatures_" type="number | null">
+  Total number of features in the one-hot encoded output.
+</ParamField>
+
+<ParamField path="featureOffsets_" type="number[] | null">
+  Starting column index for each input feature in the output matrix.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Fit the encoder to the categorical features.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a categorical feature.
+</ParamField>
+
+**Returns:** `this` - The fitted encoder instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Transform categorical features to one-hot encoding.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to encode.
+</ParamField>
+
+**Returns:** `Matrix` - One-hot encoded data.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and encode.
+</ParamField>
+
+**Returns:** `Matrix` - One-hot encoded data.
+
+## Example
+
+```typescript
+import { OneHotEncoder } from 'bun-scikit';
+
+// Categorical features: [color, size]
+// color: 0=red, 1=blue, 2=green
+// size: 0=small, 1=medium, 2=large
+const X = [
+  [0, 0],  // red, small
+  [1, 1],  // blue, medium
+  [2, 2],  // green, large
+  [0, 1],  // red, medium
+];
+
+const encoder = new OneHotEncoder();
+const XEncoded = encoder.fitTransform(X);
+
+console.log('Categories:', encoder.categories_);
+// Output: Categories: [[0, 1, 2], [0, 1, 2]]
+
+console.log('Output features:', encoder.nOutputFeatures_);
+// Output: Output features: 6
+// 3 categories for color + 3 for size
+
+console.log('Encoded:', XEncoded);
+// Output: Encoded:
+// [[1, 0, 0, 1, 0, 0],  // red=1, blue=0, green=0, small=1, med=0, large=0
+//  [0, 1, 0, 0, 1, 0],  // red=0, blue=1, green=0, small=0, med=1, large=0
+//  [0, 0, 1, 0, 0, 1],  // red=0, blue=0, green=1, small=0, med=0, large=1
+//  [1, 0, 0, 0, 1, 0]]  // red=1, blue=0, green=0, small=0, med=1, large=0
+```
+
+## Example: Handling Unknown Categories
+
+```typescript
+import { OneHotEncoder } from 'bun-scikit';
+
+const XTrain = [
+  [0, 0],
+  [1, 1],
+  [0, 1],
+];
+
+const XTest = [
+  [0, 0],
+  [2, 1],  // Category 2 not seen in training
+];
+
+// Default behavior: error on unknown
+const encoder1 = new OneHotEncoder();
+encoder1.fit(XTrain);
+
+try {
+  encoder1.transform(XTest);
+} catch (error) {
+  console.error(error.message);
+  // Output: Unknown category 2 in feature 0. Set handleUnknown='ignore' to skip.
+}
+
+// Ignore unknown categories
+const encoder2 = new OneHotEncoder({ handleUnknown: 'ignore' });
+encoder2.fit(XTrain);
+const XTestEncoded = encoder2.transform(XTest);
+
+console.log('Encoded with unknown:', XTestEncoded);
+// Output: [[1, 0, 1, 0], [0, 0, 0, 1, 0]]
+// Row 1: all zeros for feature 0 (unknown category)
+```
+
+## Example: Single Feature Encoding
+
+```typescript
+import { OneHotEncoder } from 'bun-scikit';
+
+// Days of week
+const days = [
+  [1],  // Monday
+  [2],  // Tuesday
+  [3],  // Wednesday
+  [1],  // Monday
+  [2],  // Tuesday
+];
+
+const encoder = new OneHotEncoder();
+const daysEncoded = encoder.fitTransform(days);
+
+console.log('Days encoded:', daysEncoded);
+// Output:
+// [[1, 0, 0],  // Monday
+//  [0, 1, 0],  // Tuesday
+//  [0, 0, 1],  // Wednesday
+//  [1, 0, 0],  // Monday
+//  [0, 1, 0]]  // Tuesday
+```
+
+## Example: Feature Offsets
+
+```typescript
+import { OneHotEncoder } from 'bun-scikit';
+
+const X = [[0, 0, 0], [1, 1, 1]];
+// Feature 0 has 2 categories: [0, 1]
+// Feature 1 has 2 categories: [0, 1]
+// Feature 2 has 2 categories: [0, 1]
+
+const encoder = new OneHotEncoder();
+encoder.fit(X);
+
+console.log('Feature offsets:', encoder.featureOffsets_);
+// Output: Feature offsets: [0, 2, 4]
+// Feature 0 columns: 0-1
+// Feature 1 columns: 2-3
+// Feature 2 columns: 4-5
+
+console.log('Total output features:', encoder.nOutputFeatures_);
+// Output: Total output features: 6
+```
+
+## Notes
+
+- Categories are automatically determined from the data during fit
+- Each categorical value is mapped to a unique column in the output
+- The encoder must be fitted before calling `transform()`
+- Input data must be finite numeric values representing categories
+- Use `handleUnknown='ignore'` if test data may contain unseen categories
+- For label encoding (single column output), use LabelEncoder instead

@@ -1,0 +1,210 @@
+---
+title: PolynomialFeatures
+description: Generate polynomial and interaction features
+---
+
+## Overview
+
+PolynomialFeatures generates a new feature matrix consisting of all polynomial combinations of features with degree less than or equal to the specified degree.
+
+## Constructor
+
+```typescript
+new PolynomialFeatures(options?: PolynomialFeaturesOptions)
+```
+
+<ParamField path="options.degree" type="number" default="2">
+  The degree of the polynomial features. Must be a non-negative integer.
+</ParamField>
+
+<ParamField path="options.includeBias" type="boolean" default="true">
+  If true, include a bias column (all ones) as the first feature.
+</ParamField>
+
+<ParamField path="options.interactionOnly" type="boolean" default="false">
+  If true, only interaction features are produced (no features raised to a power). For example, with features [a, b] and degree 2, only a*b is included, not a^2 or b^2.
+</ParamField>
+
+## Properties
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit.
+</ParamField>
+
+<ParamField path="nOutputFeatures_" type="number | null">
+  Total number of polynomial features in the output.
+</ParamField>
+
+<ParamField path="powers_" type="number[][] | null">
+  Exponent matrix. Each row represents one output feature, with values indicating the power of each input feature.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute the polynomial feature combinations.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a feature.
+</ParamField>
+
+**Returns:** `this` - The fitted transformer instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Transform data to polynomial features.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data with polynomial features.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data.
+
+## Example
+
+```typescript
+import { PolynomialFeatures } from 'bun-scikit';
+
+// Original features: [a, b]
+const X = [
+  [2, 3],
+  [3, 4],
+  [4, 5]
+];
+
+// Generate degree 2 polynomial features
+const poly = new PolynomialFeatures({ degree: 2 });
+const XPoly = poly.fitTransform(X);
+
+console.log('Output features:', poly.nOutputFeatures_);
+// Output: Output features: 6
+// [1, a, b, a^2, a*b, b^2]
+
+console.log('Powers:', poly.powers_);
+// Output: Powers:
+// [[0, 0],  // bias: a^0 * b^0 = 1
+//  [1, 0],  // a^1 * b^0 = a
+//  [0, 1],  // a^0 * b^1 = b
+//  [2, 0],  // a^2 * b^0 = a^2
+//  [1, 1],  // a^1 * b^1 = a*b
+//  [0, 2]]  // a^0 * b^2 = b^2
+
+console.log('Transformed:', XPoly);
+// Output for [2, 3]:
+// [1, 2, 3, 4, 6, 9]
+// 1, a=2, b=3, a^2=4, a*b=6, b^2=9
+```
+
+## Example: Interaction-Only Features
+
+```typescript
+import { PolynomialFeatures } from 'bun-scikit';
+
+const X = [[2, 3, 4]];
+
+// Only interaction terms (no powers)
+const poly = new PolynomialFeatures({
+  degree: 2,
+  interactionOnly: true,
+  includeBias: false
+});
+
+const XPoly = poly.fitTransform(X);
+
+console.log('Powers:', poly.powers_);
+// Output: Powers:
+// [[1, 0, 0],  // a
+//  [0, 1, 0],  // b
+//  [0, 0, 1],  // c
+//  [1, 1, 0],  // a*b
+//  [1, 0, 1],  // a*c
+//  [0, 1, 1]]  // b*c
+// Note: a^2, b^2, c^2 are excluded
+
+console.log('Transformed:', XPoly);
+// Output: [2, 3, 4, 6, 8, 12]
+// a=2, b=3, c=4, a*b=6, a*c=8, b*c=12
+```
+
+## Example: Polynomial Regression
+
+```typescript
+import { PolynomialFeatures, LinearRegression } from 'bun-scikit';
+
+// Non-linear relationship: y = x^2
+const X = [[1], [2], [3], [4], [5]];
+const y = [1, 4, 9, 16, 25];
+
+// Transform to polynomial features
+const poly = new PolynomialFeatures({ degree: 2 });
+const XPoly = poly.fitTransform(X);
+
+console.log('Polynomial features:', XPoly);
+// [[1, 1, 1],   // [1, x, x^2] for x=1
+//  [1, 2, 4],   // [1, x, x^2] for x=2
+//  [1, 3, 9],   // [1, x, x^2] for x=3
+//  [1, 4, 16],  // [1, x, x^2] for x=4
+//  [1, 5, 25]]  // [1, x, x^2] for x=5
+
+// Fit linear model on polynomial features
+const model = new LinearRegression();
+model.fit(XPoly, y);
+
+// Predict
+const XTest = [[6]];
+const XTestPoly = poly.transform(XTest);
+const prediction = model.predict(XTestPoly);
+console.log('Prediction for x=6:', prediction);
+// Output: Prediction for x=6: [36] (close to 6^2 = 36)
+```
+
+## Example: Higher Degree
+
+```typescript
+import { PolynomialFeatures } from 'bun-scikit';
+
+const X = [[2, 3]];
+
+// Degree 3 polynomial
+const poly = new PolynomialFeatures({ degree: 3, includeBias: false });
+const XPoly = poly.fitTransform(X);
+
+console.log('Output features:', poly.nOutputFeatures_);
+// Output: Output features: 9
+// [a, b, a^2, a*b, b^2, a^3, a^2*b, a*b^2, b^3]
+
+console.log('Powers:', poly.powers_);
+// Shows all combinations up to degree 3
+```
+
+## Notes
+
+- Useful for polynomial regression and feature engineering
+- The number of output features grows quickly with degree and input features
+- For n input features and degree d, the number of output features is C(n+d, d)
+- Setting `interactionOnly=true` reduces the number of features
+- The transformer must be fitted before calling `transform()`
+- Input data must be finite (no NaN or Infinity values)

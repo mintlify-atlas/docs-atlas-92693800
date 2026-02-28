@@ -1,0 +1,469 @@
+---
+title: "Clustering Algorithms"
+description: "Unsupervised learning with K-Means, DBSCAN, and hierarchical clustering"
+---
+
+## Overview
+
+Clustering algorithms group similar data points together without labeled training data. bun-scikit provides implementations of popular clustering methods for various use cases.
+
+<CardGroup cols={2}>
+  <Card title="K-Means" icon="circle-nodes" href="#k-means">
+    Partition-based clustering
+  </Card>
+  <Card title="DBSCAN" icon="radar" href="#dbscan">
+    Density-based spatial clustering
+  </Card>
+  <Card title="Hierarchical" icon="sitemap" href="#hierarchical-clustering">
+    Agglomerative clustering
+  </Card>
+  <Card title="Spectral" icon="wave-pulse" href="#spectral-clustering">
+    Graph-based clustering
+  </Card>
+</CardGroup>
+
+## K-Means
+
+K-Means partitions data into K clusters by minimizing within-cluster variance.
+
+### Basic Usage
+
+```typescript
+import { KMeans } from "bun-scikit";
+
+const X = [
+  [0, 0], [0.1, -0.1], [-0.2, 0.1],    // Cluster 1
+  [10, 10], [10.2, 9.9], [9.8, 10.1],  // Cluster 2
+];
+
+const kmeans = new KMeans({
+  nClusters: 2,
+  randomState: 42,
+  nInit: 10,
+  maxIter: 300,
+});
+
+kmeans.fit(X);
+
+console.log("Cluster centers:", kmeans.clusterCenters_);
+console.log("Labels:", kmeans.labels_);
+console.log("Inertia:", kmeans.inertia_);
+console.log("Iterations:", kmeans.nIter_);
+```
+
+### Configuration Options
+
+<ParamField path="nClusters" type="number" default="8">
+  Number of clusters to form
+</ParamField>
+
+<ParamField path="nInit" type="number" default="10">
+  Number of times the algorithm runs with different centroid seeds. Best result is kept.
+</ParamField>
+
+<ParamField path="maxIter" type="number" default="300">
+  Maximum number of iterations for a single run
+</ParamField>
+
+<ParamField path="tolerance" type="number" default="1e-4">
+  Convergence tolerance for centroid movement
+</ParamField>
+
+<ParamField path="randomState" type="number" default="undefined">
+  Random seed for reproducibility
+</ParamField>
+
+### Predicting New Samples
+
+```typescript
+// Assign new points to existing clusters
+const newPoints = [[0.5, 0.5], [10.5, 10.5]];
+const labels = kmeans.predict(newPoints);
+console.log("Assigned clusters:", labels);
+
+// Get distances to all cluster centers
+const distances = kmeans.transform(newPoints);
+console.log("Distances to centers:", distances);
+```
+
+### Attributes
+
+After fitting, KMeans exposes:
+
+- `clusterCenters_`: Coordinates of cluster centers
+- `labels_`: Cluster label for each training sample
+- `inertia_`: Sum of squared distances to nearest cluster center
+- `nIter_`: Number of iterations run
+- `nFeaturesIn_`: Number of features in the input
+
+### Finding Optimal K
+
+Use the elbow method to find the optimal number of clusters:
+
+```typescript
+const inertias = [];
+const kRange = [2, 3, 4, 5, 6, 7, 8];
+
+for (const k of kRange) {
+  const model = new KMeans({ nClusters: k, randomState: 42 });
+  model.fit(X);
+  inertias.push(model.inertia_!);
+}
+
+console.log("K values:", kRange);
+console.log("Inertias:", inertias);
+// Plot and look for the "elbow" point
+```
+
+## DBSCAN
+
+DBSCAN (Density-Based Spatial Clustering of Applications with Noise) finds clusters based on density and can identify outliers.
+
+### Basic Usage
+
+```typescript
+import { DBSCAN } from "bun-scikit";
+
+const X = [
+  [0, 0], [0, 1], [1, 0],          // Dense cluster 1
+  [10, 10], [10, 11], [11, 10],    // Dense cluster 2
+  [5, 5],                           // Outlier
+];
+
+const dbscan = new DBSCAN({
+  eps: 1.5,         // Maximum distance between neighbors
+  minSamples: 2,    // Minimum points to form a dense region
+});
+
+dbscan.fit(X);
+
+console.log("Labels:", dbscan.labels_);
+// -1 indicates noise/outliers
+
+console.log("Core sample indices:", dbscan.coreSampleIndices_);
+console.log("Core samples:", dbscan.components_);
+```
+
+### Configuration
+
+<ParamField path="eps" type="number" default="0.5">
+  Maximum distance between two samples to be considered neighbors
+</ParamField>
+
+<ParamField path="minSamples" type="number" default="5">
+  Number of samples in a neighborhood for a point to be considered a core point
+</ParamField>
+
+### Understanding Labels
+
+```typescript
+dbscan.fit(X);
+
+const labels = dbscan.labels_!;
+const uniqueLabels = [...new Set(labels)];
+
+console.log(`Found ${uniqueLabels.filter(l => l !== -1).length} clusters`);
+
+const noisePoints = labels.filter(l => l === -1).length;
+console.log(`${noisePoints} noise points detected`);
+
+// Get points in each cluster
+for (const label of uniqueLabels) {
+  if (label === -1) continue;
+  const clusterPoints = X.filter((_, i) => labels[i] === label);
+  console.log(`Cluster ${label}: ${clusterPoints.length} points`);
+}
+```
+
+<Note>
+  DBSCAN is excellent for finding clusters of arbitrary shape and identifying outliers, but requires careful tuning of `eps` and `minSamples` parameters.
+</Note>
+
+## Hierarchical Clustering
+
+Agglomerative clustering builds a hierarchy of clusters using a bottom-up approach.
+
+### Basic Usage
+
+```typescript
+import { AgglomerativeClustering } from "bun-scikit";
+
+const X = [
+  [0, 0], [0, 1], [1, 0],
+  [5, 5], [5, 6], [6, 5],
+  [10, 10], [10, 11], [11, 10],
+];
+
+const agg = new AgglomerativeClustering({
+  nClusters: 3,
+  linkage: "ward",
+  metric: "euclidean",
+});
+
+agg.fit(X);
+
+console.log("Labels:", agg.labels_);
+console.log("Number of leaves:", agg.nLeaves_);
+```
+
+### Configuration
+
+<ParamField path="nClusters" type="number" default="2">
+  Number of clusters to find
+</ParamField>
+
+<ParamField path="linkage" type="'ward' | 'complete' | 'average' | 'single'" default="'ward'">
+  Linkage criterion:
+  - **ward**: Minimizes variance of clusters
+  - **complete**: Maximum distance between clusters
+  - **average**: Average distance between clusters
+  - **single**: Minimum distance between clusters
+</ParamField>
+
+<ParamField path="metric" type="string" default="'euclidean'">
+  Distance metric to use
+</ParamField>
+
+### Distance Threshold
+
+Instead of specifying number of clusters, use distance threshold:
+
+```typescript
+const aggDist = new AgglomerativeClustering({
+  nClusters: null,
+  distanceThreshold: 5.0,
+  linkage: "average",
+});
+
+aggDist.fit(X);
+
+// Number of clusters is determined by distance threshold
+const nClusters = new Set(aggDist.labels_).size;
+console.log(`Found ${nClusters} clusters`);
+```
+
+## Spectral Clustering
+
+Spectral clustering uses graph-based methods and works well for non-convex clusters.
+
+### Basic Usage
+
+```typescript
+import { SpectralClustering } from "bun-scikit";
+
+const X = [
+  [0, 0], [0, 1], [1, 0],
+  [10, 10], [10, 11], [11, 10],
+];
+
+const spectral = new SpectralClustering({
+  nClusters: 2,
+  affinity: "rbf",
+  gamma: 1.0,
+  randomState: 42,
+});
+
+spectral.fit(X);
+
+console.log("Labels:", spectral.labels_);
+```
+
+### Configuration
+
+<ParamField path="nClusters" type="number" default="8">
+  Number of clusters
+</ParamField>
+
+<ParamField path="affinity" type="'rbf' | 'nearest_neighbors' | 'precomputed'" default="'rbf'">
+  How to construct the affinity matrix
+</ParamField>
+
+<ParamField path="gamma" type="number" default="1.0">
+  Kernel coefficient for 'rbf' affinity
+</ParamField>
+
+## BIRCH
+
+BIRCH (Balanced Iterative Reducing and Clustering using Hierarchies) is memory-efficient for large datasets.
+
+### Basic Usage
+
+```typescript
+import { Birch } from "bun-scikit";
+
+const birch = new Birch({
+  nClusters: 3,
+  threshold: 0.5,
+  branchingFactor: 50,
+});
+
+birch.fit(X);
+
+console.log("Labels:", birch.labels_);
+console.log("Subcluster centers:", birch.subclusterCenters_);
+```
+
+## OPTICS
+
+OPTICS (Ordering Points To Identify the Clustering Structure) is similar to DBSCAN but produces a reachability plot.
+
+### Basic Usage
+
+```typescript
+import { OPTICS } from "bun-scikit";
+
+const optics = new OPTICS({
+  minSamples: 5,
+  maxEps: 2.0,
+  metric: "euclidean",
+});
+
+optics.fit(X);
+
+console.log("Labels:", optics.labels_);
+console.log("Reachability:", optics.reachability_);
+console.log("Ordering:", optics.ordering_);
+```
+
+## Clustering Evaluation
+
+### Silhouette Score
+
+Measure clustering quality:
+
+```typescript
+import { silhouetteScore } from "bun-scikit";
+
+kmeans.fit(X);
+const score = silhouetteScore(X, kmeans.labels_!);
+console.log("Silhouette score:", score); // -1 to 1, higher is better
+```
+
+### Calinski-Harabasz Index
+
+```typescript
+import { calinskiHarabaszScore } from "bun-scikit";
+
+const chScore = calinskiHarabaszScore(X, kmeans.labels_!);
+console.log("Calinski-Harabasz score:", chScore); // Higher is better
+```
+
+### Davies-Bouldin Index
+
+```typescript
+import { daviesBouldinScore } from "bun-scikit";
+
+const dbScore = daviesBouldinScore(X, kmeans.labels_!);
+console.log("Davies-Bouldin score:", dbScore); // Lower is better
+```
+
+## Common Patterns
+
+### Clustering Pipeline
+
+```typescript
+import { Pipeline } from "bun-scikit";
+import { StandardScaler } from "bun-scikit";
+import { KMeans } from "bun-scikit";
+
+const pipe = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["kmeans", new KMeans({ nClusters: 3 })],
+]);
+
+pipe.fit(X);
+
+// Access the fitted KMeans
+const kmeans = pipe.namedSteps_.get("kmeans") as KMeans;
+console.log("Centers:", kmeans.clusterCenters_);
+```
+
+### Feature Scaling
+
+```typescript
+import { StandardScaler } from "bun-scikit";
+
+// Always scale features before clustering
+const scaler = new StandardScaler();
+const X_scaled = scaler.fitTransform(X);
+
+const kmeans = new KMeans({ nClusters: 3 });
+kmeans.fit(X_scaled);
+```
+
+### Comparing Multiple Algorithms
+
+```typescript
+const algorithms = [
+  ["K-Means", new KMeans({ nClusters: 3, randomState: 42 })],
+  ["DBSCAN", new DBSCAN({ eps: 0.5, minSamples: 5 })],
+  ["Agglomerative", new AgglomerativeClustering({ nClusters: 3 })],
+];
+
+for (const [name, algo] of algorithms) {
+  algo.fit(X);
+  const score = silhouetteScore(X, algo.labels_!);
+  console.log(`${name}: silhouette = ${score.toFixed(4)}`);
+}
+```
+
+## Performance Tips
+
+<AccordionGroup>
+  <Accordion title="Choosing the Right Algorithm">
+    - **K-Means**: Fast, works well with spherical clusters, requires K to be specified
+    - **DBSCAN**: Handles arbitrary shapes, finds outliers, sensitive to parameters
+    - **Hierarchical**: No need to specify K upfront, computationally expensive for large datasets
+    - **Spectral**: Works with non-convex clusters, slower than K-Means
+    - **BIRCH**: Memory-efficient for very large datasets
+  </Accordion>
+
+  <Accordion title="Scaling Features">
+    Always standardize features before clustering:
+    ```typescript
+    const scaler = new StandardScaler();
+    const X_scaled = scaler.fitTransform(X);
+    ```
+    This ensures all features contribute equally to distance calculations.
+  </Accordion>
+
+  <Accordion title="Dimensionality Reduction">
+    For high-dimensional data, reduce dimensions first:
+    ```typescript
+    import { PCA } from "bun-scikit";
+    
+    const pca = new PCA({ nComponents: 10 });
+    const X_reduced = pca.fitTransform(X);
+    
+    kmeans.fit(X_reduced);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Customer Segmentation" icon="users">
+    Group customers by behavior patterns using K-Means
+  </Card>
+  <Card title="Anomaly Detection" icon="exclamation-triangle">
+    Find outliers with DBSCAN's noise detection
+  </Card>
+  <Card title="Image Segmentation" icon="image">
+    Partition images using spectral clustering
+  </Card>
+  <Card title="Document Clustering" icon="file-lines">
+    Group similar documents with hierarchical clustering
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dimensionality Reduction" icon="compress" href="/guides/dimensionality-reduction">
+    Use PCA before clustering
+  </Card>
+  <Card title="Model Selection" icon="sliders" href="/guides/model-selection">
+    Evaluate clustering quality
+  </Card>
+</CardGroup>

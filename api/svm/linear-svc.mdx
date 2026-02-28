@@ -1,0 +1,347 @@
+---
+title: 'LinearSVC'
+description: 'Linear Support Vector Classification'
+---
+
+## Overview
+
+The `LinearSVC` implements linear support vector classification using only the linear kernel. It's optimized for large-scale linear classification and provides faster training than SVC with a linear kernel.
+
+## Constructor
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+const classifier = new LinearSVC({
+  fitIntercept: true,
+  C: 1.0,
+  learningRate: 0.05,
+  maxIter: 10000,
+  tolerance: 1e-6
+});
+```
+
+### Parameters
+
+<ParamField path="fitIntercept" type="boolean" default={true}>
+  Whether to calculate the intercept for this model. If set to false, no intercept will be used in calculations.
+</ParamField>
+
+<ParamField path="C" type="number" default={1.0}>
+  Regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default={0.05}>
+  Learning rate for the gradient descent optimizer.
+</ParamField>
+
+<ParamField path="maxIter" type="number" default={10000}>
+  Maximum number of iterations for the optimization algorithm.
+</ParamField>
+
+<ParamField path="tolerance" type="number" default={1e-6}>
+  Tolerance for stopping criterion. Training stops when parameter updates are smaller than this value.
+</ParamField>
+
+## Methods
+
+### fit()
+
+Fit the linear SVM model according to the training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target class labels.
+</ParamField>
+
+<ParamField path="sampleWeight" type="Vector">
+  Sample weights (reserved for future use).
+</ParamField>
+
+**Returns:** `this` - The fitted classifier.
+
+### predict()
+
+Perform classification on samples.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector` - Predicted class labels.
+
+### decisionFunction()
+
+Evaluate the decision function for the samples.
+
+```typescript
+decisionFunction(X: Matrix): Vector | Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector | Matrix` - Decision function values. For binary classification, returns a Vector. For multi-class, returns a Matrix.
+
+### score()
+
+Return the mean accuracy on the given test data.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  True labels.
+</ParamField>
+
+**Returns:** `number` - Mean accuracy.
+
+## Attributes
+
+<ParamField path="classes_" type="Vector">
+  Unique class labels.
+</ParamField>
+
+<ParamField path="coef_" type="Vector | Matrix">
+  Weights assigned to the features. For binary classification, this is a Vector. For multi-class, it's a Matrix where each row corresponds to a class.
+</ParamField>
+
+<ParamField path="intercept_" type="number | Vector">
+  Intercept (bias) term. For binary classification, this is a number. For multi-class, it's a Vector with one intercept per class.
+</ParamField>
+
+## Examples
+
+### Basic Binary Classification
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+// Linearly separable data
+const X = [
+  [0, 0], [1, 1], [1, 0],
+  [5, 5], [6, 6], [5, 6]
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+const svc = new LinearSVC({ C: 1.0 });
+svc.fit(X, y);
+
+const predictions = svc.predict([[2, 2], [5, 5]]);
+console.log(predictions); // [0, 1]
+```
+
+### Multi-class Classification
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+// Three-class problem
+const X = [
+  [1, 1], [1, 2], [2, 1],     // Class 0
+  [5, 5], [5, 6], [6, 5],     // Class 1
+  [9, 1], [9, 2], [10, 1]     // Class 2
+];
+const y = [0, 0, 0, 1, 1, 1, 2, 2, 2];
+
+const svc = new LinearSVC();
+svc.fit(X, y);
+
+const predictions = svc.predict([[1.5, 1.5], [5.5, 5.5], [9.5, 1.5]]);
+console.log(predictions); // [0, 1, 2]
+console.log('Coefficients shape:', svc.coef_.length); // 3 classes
+```
+
+### Decision Function Values
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+const X = [[0, 0], [1, 1], [5, 5], [6, 6]];
+const y = [0, 0, 1, 1];
+
+const svc = new LinearSVC();
+svc.fit(X, y);
+
+// Get decision function values
+const decisionValues = svc.decisionFunction([[2, 2], [4, 4]]);
+console.log(decisionValues);
+// Negative values indicate class 0, positive indicate class 1
+// Magnitude indicates confidence
+```
+
+### Without Intercept
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+// Data that passes through origin
+const X = [[1, 1], [2, 2], [-1, -1], [-2, -2]];
+const y = [1, 1, 0, 0];
+
+const svc = new LinearSVC({ fitIntercept: false });
+svc.fit(X, y);
+
+console.log('Intercept:', svc.intercept_); // 0
+console.log('Coefficients:', svc.coef_);
+```
+
+### Tuning Regularization
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+const X = [
+  [0, 0], [0.5, 0.5], [1, 1],
+  [3, 3], [3.5, 3.5], [4, 4]
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+// Weak regularization (may overfit)
+const weakSVC = new LinearSVC({ C: 100 });
+weakSVC.fit(X, y);
+
+// Strong regularization (simpler model)
+const strongSVC = new LinearSVC({ C: 0.01 });
+strongSVC.fit(X, y);
+
+console.log('Weak regularization coef:', weakSVC.coef_);
+console.log('Strong regularization coef:', strongSVC.coef_);
+```
+
+### Early Stopping with Tolerance
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+const X = [[0, 0], [1, 1], [2, 2], [5, 5], [6, 6], [7, 7]];
+const y = [0, 0, 0, 1, 1, 1];
+
+// Strict convergence
+const strictSVC = new LinearSVC({ 
+  tolerance: 1e-8,
+  maxIter: 10000
+});
+strictSVC.fit(X, y);
+
+// Looser convergence (faster)
+const fastSVC = new LinearSVC({ 
+  tolerance: 1e-3,
+  maxIter: 1000
+});
+fastSVC.fit(X, y);
+```
+
+### Model Evaluation
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+// Training data
+const XTrain = [
+  [0, 0], [1, 1], [2, 2],
+  [5, 5], [6, 6], [7, 7]
+];
+const yTrain = [0, 0, 0, 1, 1, 1];
+
+// Test data
+const XTest = [[1.5, 1.5], [6.5, 6.5]];
+const yTest = [0, 1];
+
+const svc = new LinearSVC();
+svc.fit(XTrain, yTrain);
+
+const accuracy = svc.score(XTest, yTest);
+console.log(`Accuracy: ${accuracy}`); // 1.0
+```
+
+### Feature Importance
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+const X = [
+  [1, 0], [2, 0], [3, 0],
+  [1, 5], [2, 6], [3, 7]
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+const svc = new LinearSVC();
+svc.fit(X, y);
+
+// Coefficients indicate feature importance
+console.log('Feature weights:', svc.coef_);
+// Larger absolute values indicate more important features
+```
+
+### Handling Imbalanced Classes
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+// Imbalanced dataset (more samples of class 0)
+const X = [
+  [0, 0], [0, 1], [1, 0], [1, 1], [0.5, 0.5], // Class 0 (5 samples)
+  [5, 5], [6, 6]                                 // Class 1 (2 samples)
+];
+const y = [0, 0, 0, 0, 0, 1, 1];
+
+const svc = new LinearSVC({ C: 1.0 });
+svc.fit(X, y);
+
+const predictions = svc.predict([[0.5, 0.5], [5.5, 5.5]]);
+console.log(predictions);
+```
+
+### Text Classification
+
+```typescript
+import { LinearSVC } from '@scikitjs/sklearn';
+
+// Simple TF-IDF-like features for sentiment analysis
+// Features: [positiveWords, negativeWords, wordCount]
+const X = [
+  [5, 0, 10],  // positive review
+  [4, 1, 12],  // positive review
+  [0, 5, 8],   // negative review
+  [1, 4, 9],   // negative review
+  [6, 0, 15],  // positive review
+  [0, 6, 11]   // negative review
+];
+const y = [1, 1, 0, 0, 1, 0]; // 1 = positive, 0 = negative
+
+const svc = new LinearSVC({ C: 10 });
+svc.fit(X, y);
+
+// Classify new review
+const newReview = [[3, 2, 10]];
+const sentiment = svc.predict(newReview);
+console.log('Sentiment:', sentiment[0] === 1 ? 'Positive' : 'Negative');
+```
+
+## Notes
+
+- Only supports linear decision boundaries (no kernel trick)
+- Much faster than SVC with linear kernel for large datasets
+- Uses one-vs-rest strategy for multi-class classification
+- Feature scaling is recommended for optimal performance
+- Lower C values create stronger regularization (simpler models)
+- The `fitIntercept` parameter should typically be `true` unless your data is centered
+- Uses gradient descent optimization with hinge loss

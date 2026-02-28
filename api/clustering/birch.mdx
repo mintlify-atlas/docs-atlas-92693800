@@ -1,0 +1,358 @@
+---
+title: 'Birch'
+description: 'Balanced Iterative Reducing and Clustering using Hierarchies'
+---
+
+## Overview
+
+Birch (Balanced Iterative Reducing and Clustering using Hierarchies) is a memory-efficient clustering algorithm designed for large datasets. It incrementally builds a tree structure (CF Tree) to summarize the data and then applies global clustering.
+
+## Constructor
+
+```typescript
+new Birch(options?: BirchOptions)
+```
+
+### Parameters
+
+<ParamField path="options" type="BirchOptions" default="{}">
+  Configuration options for Birch clustering
+  
+  <Expandable title="properties">
+    <ParamField path="threshold" type="number" default="0.5">
+      Radius threshold for micro-clusters. Samples within this distance can be absorbed into the same micro-cluster. Must be finite and > 0.
+    </ParamField>
+    
+    <ParamField path="branchingFactor" type="number" default="50">
+      Maximum number of micro-clusters (CF subclusters) allowed. Must be an integer >= 2.
+    </ParamField>
+    
+    <ParamField path="nClusters" type="number | null" default="3">
+      Number of final clusters. If null, each micro-cluster becomes its own cluster. Must be null or an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="computeLabels" type="boolean" default="true">
+      Whether to compute labels for each sample. If false, only subcluster information is stored.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the Birch model to the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where rows are samples and columns are features. Must be non-empty with consistent row sizes and finite values.
+</ParamField>
+
+**Returns:** The fitted Birch instance (for method chaining).
+
+**Throws:** Error if data validation fails.
+
+### fitPredict
+
+Fit the model and return cluster labels for training data.
+
+```typescript
+fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and predict on.
+</ParamField>
+
+**Returns:** Vector of cluster labels (integers from 0 to nClusters-1).
+
+**Throws:** Error if computeLabels was set to false during fitting.
+
+### predict
+
+Predict cluster labels for new samples.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to predict cluster labels for. Must match the feature count of the training data.
+</ParamField>
+
+**Returns:** Vector of cluster labels.
+
+**Throws:** Error if model not fitted or feature mismatch.
+
+### transform
+
+Transform data to subcluster-distance space.
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to transform.
+</ParamField>
+
+**Returns:** Matrix where each row contains Euclidean distances to all subcluster centers.
+
+**Throws:** Error if model not fitted or feature mismatch.
+
+## Properties
+
+<ParamField path="labels_" type="Vector | null">
+  Cluster labels for training samples. Null if computeLabels=false.
+</ParamField>
+
+<ParamField path="subclusterCenters_" type="Matrix | null">
+  Centers of micro-clusters found during initial tree building phase.
+</ParamField>
+
+<ParamField path="subclusterLabels_" type="Vector | null">
+  Cluster assignment for each micro-cluster.
+</ParamField>
+
+<ParamField path="clusterCenters_" type="Matrix | null">
+  Centers of the final clusters after global clustering.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fitting.
+</ParamField>
+
+## Examples
+
+### Basic Usage
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+const X = [
+  [1, 2], [1.5, 1.8], [1.2, 2.1],
+  [5, 8], [5.5, 8.2], [5.2, 7.9],
+  [9, 11], [9.2, 11.3], [8.8, 10.9]
+];
+
+// Create and fit Birch model
+const birch = new Birch({
+  threshold: 1.5,
+  branchingFactor: 50,
+  nClusters: 3
+});
+
+birch.fit(X);
+
+console.log('Cluster labels:', birch.labels_);
+console.log('Cluster centers:', birch.clusterCenters_);
+console.log('Number of subclusters:', birch.subclusterCenters_!.length);
+```
+
+### Large Dataset Clustering
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+// Generate large dataset
+const generateCluster = (cx: number, cy: number, n: number) => {
+  return Array.from({ length: n }, () => [
+    cx + (Math.random() - 0.5) * 2,
+    cy + (Math.random() - 0.5) * 2
+  ]);
+};
+
+const largeDataset = [
+  ...generateCluster(0, 0, 1000),
+  ...generateCluster(10, 10, 1000),
+  ...generateCluster(20, 0, 1000)
+];
+
+const birch = new Birch({
+  threshold: 0.5,
+  branchingFactor: 100,
+  nClusters: 3
+});
+
+birch.fit(largeDataset);
+console.log('Clustered', largeDataset.length, 'samples');
+console.log('Created', birch.subclusterCenters_!.length, 'subclusters');
+```
+
+### Incremental Clustering Simulation
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+const batchData = [
+  [[1, 2], [1.5, 1.8], [1.2, 2.1]],
+  [[5, 8], [5.5, 8.2], [5.2, 7.9]],
+  [[9, 11], [9.2, 11.3], [8.8, 10.9]]
+];
+
+// Process all batches at once (Birch is memory-efficient)
+const allData = batchData.flat();
+
+const birch = new Birch({
+  threshold: 1.0,
+  nClusters: 3
+});
+
+birch.fit(allData);
+console.log('Final labels:', birch.labels_);
+```
+
+### Adjusting Threshold Parameter
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+const data = [
+  [1, 2], [1.1, 2.1], [1.2, 1.9],
+  [5, 5], [5.1, 5.2], [4.9, 4.8]
+];
+
+// Small threshold: more subclusters, finer granularity
+const fineBirch = new Birch({ threshold: 0.3, nClusters: 2 });
+fineBirch.fit(data);
+console.log('Fine subclusters:', fineBirch.subclusterCenters_!.length);
+
+// Large threshold: fewer subclusters, coarser granularity
+const coarseBirch = new Birch({ threshold: 2.0, nClusters: 2 });
+coarseBirch.fit(data);
+console.log('Coarse subclusters:', coarseBirch.subclusterCenters_!.length);
+```
+
+### Prediction on New Data
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+const trainData = [
+  [1, 2], [1.5, 1.8], [5, 8], [8, 8]
+];
+
+const birch = new Birch({
+  threshold: 1.0,
+  nClusters: 2
+});
+
+birch.fit(trainData);
+
+// Predict clusters for new samples
+const newData = [
+  [1.2, 2.1],  // Similar to first cluster
+  [7.8, 8.2]   // Similar to second cluster
+];
+
+const predictions = birch.predict(newData);
+console.log('Predictions:', predictions);
+```
+
+### Distance Transformation
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+const X = [
+  [1, 2], [5, 8], [9, 11]
+];
+
+const birch = new Birch({
+  threshold: 1.0,
+  nClusters: 2
+});
+
+birch.fit(X);
+
+// Get distances to subclusters
+const distances = birch.transform(X);
+console.log('Distances to subclusters:', distances);
+// Each row shows distance from sample to each subcluster center
+```
+
+### Without Final Clustering
+
+```typescript
+import { Birch } from 'bun-scikit';
+
+const data = [
+  [1, 2], [1.5, 1.8], [5, 8], [8, 8]
+];
+
+// Set nClusters to null to keep only subclusters
+const birch = new Birch({
+  threshold: 1.0,
+  branchingFactor: 50,
+  nClusters: null  // No global clustering
+});
+
+birch.fit(data);
+
+console.log('Subcluster centers:', birch.subclusterCenters_);
+console.log('Each subcluster is a final cluster');
+```
+
+## Algorithm Details
+
+Birch operates in two main phases:
+
+### Phase 1: Tree Building
+1. Process samples sequentially
+2. For each sample:
+   - Find closest micro-cluster (subcluster)
+   - If distance < threshold, absorb into micro-cluster
+   - If distance >= threshold and space available, create new micro-cluster
+   - If no space, absorb into closest micro-cluster
+3. Update micro-cluster statistics (count, sum, center)
+
+### Phase 2: Global Clustering
+1. Treat micro-cluster centers as samples
+2. Apply KMeans to group micro-clusters
+3. Assign original samples to final clusters through their micro-clusters
+
+## Micro-Cluster Statistics
+
+Each micro-cluster maintains:
+- **count**: Number of samples
+- **sum**: Sum of sample coordinates
+- **center**: Mean of samples (sum / count)
+
+## Advantages
+
+- **Memory efficient**: Fixed memory usage regardless of dataset size
+- **Fast**: Single pass over data
+- **Scalable**: Works with large datasets
+- **Incremental**: Can process streaming data
+- **Outlier robust**: Threshold prevents outliers from dominating
+
+## Considerations
+
+- Sensitive to insertion order (though impact is usually minor)
+- Threshold parameter requires tuning
+- Assumes roughly spherical clusters
+- May create more subclusters than necessary
+
+## Parameter Selection Guide
+
+**threshold**:
+- Smaller values → more micro-clusters → finer detail
+- Larger values → fewer micro-clusters → coarser summary
+- Rule of thumb: Start with average distance between nearby points
+
+**branchingFactor**:
+- Should be large enough to capture data diversity
+- Typical range: 50-200
+- Memory usage is O(branchingFactor × nFeatures)
+
+**nClusters**:
+- Set to desired final number of clusters
+- Set to null to use micro-clusters directly
+- Can be much smaller than number of micro-clusters
+
+**computeLabels**:
+- Set to false if you only need cluster centers (saves memory)
+- Set to true if you need labels for training samples

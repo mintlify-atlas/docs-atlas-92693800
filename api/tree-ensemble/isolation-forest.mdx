@@ -1,0 +1,295 @@
+---
+title: "Isolation Forest"
+description: "IsolationForest API reference for anomaly detection"
+---
+
+## IsolationForest
+
+Anomaly detection using k-nearest neighbors distance-based approach. Identifies outliers as points with high average distance to their k nearest neighbors.
+
+<Note>
+The current implementation uses a KNN-based approach rather than isolation trees. Future versions may implement the tree-based isolation forest algorithm.
+</Note>
+
+### Constructor
+
+```typescript
+import { IsolationForest } from "bun-scikit";
+
+const model = new IsolationForest({
+  nEstimators: 100,
+  maxSamples: undefined,
+  contamination: "auto",
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="nEstimators" type="number" default="100">
+  Number of estimators in the ensemble. Currently not used in KNN implementation but kept for API compatibility.
+</ParamField>
+
+<ParamField path="maxSamples" type="number" optional>
+  Number of samples to draw for training each estimator. Currently not used but kept for API compatibility.
+</ParamField>
+
+<ParamField path="contamination" type="'auto' | number" default="'auto'">
+  Expected proportion of outliers in the dataset:
+  - `"auto"`: Uses 0.1 (10% contamination)
+  - `number`: Must be in range (0, 0.5)
+  
+  This determines the threshold for anomaly detection.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducibility. Currently not used but kept for API compatibility.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Fit the anomaly detector on training data.
+
+```typescript
+model.fit(X: Matrix): IsolationForest
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features]. The model learns the distribution of normal data.
+</ParamField>
+
+**Returns:** The fitted IsolationForest instance.
+
+#### predict()
+
+Predict anomaly labels for samples.
+
+```typescript
+model.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to classify, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Labels for each sample:
+- `1`: Inlier (normal point)
+- `-1`: Outlier (anomaly)
+
+#### fitPredict()
+
+Fit the model and predict anomalies in the same dataset.
+
+```typescript
+model.fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Data to fit and predict on.
+</ParamField>
+
+**Returns:** Labels (1 for inliers, -1 for outliers).
+
+#### scoreSamples()
+
+Compute anomaly scores for samples.
+
+```typescript
+model.scoreSamples(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to score.
+</ParamField>
+
+**Returns:** Anomaly scores for each sample. Lower (more negative) scores indicate outliers.
+
+#### decisionFunction()
+
+Compute the decision function (shifted anomaly scores).
+
+```typescript
+model.decisionFunction(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to score.
+</ParamField>
+
+**Returns:** Shifted anomaly scores. Negative values indicate outliers, positive values indicate inliers.
+
+### Properties
+
+<ParamField path="offset_" type="number" readonly>
+  Offset used in the decision function to separate inliers from outliers.
+</ParamField>
+
+<ParamField path="threshold_" type="number" readonly>
+  Threshold on the raw anomaly score to determine contamination.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null" readonly>
+  Number of features seen during fit.
+</ParamField>
+
+<ParamField path="scoreSamplesTrain_" type="Vector | null" readonly>
+  Anomaly scores for training samples.
+</ParamField>
+
+### Example: Basic Usage
+
+```typescript
+import { IsolationForest } from "bun-scikit";
+
+// Create model with 5% expected contamination
+const model = new IsolationForest({ 
+  contamination: 0.05,
+  randomState: 42 
+});
+
+// Normal data (clustered around origin)
+const X = [
+  [0.1, 0.2],
+  [0.2, 0.1],
+  [0.15, 0.18],
+  [-0.1, -0.2],
+  [-0.2, -0.1],
+  // Outliers (far from cluster)
+  [5.0, 5.0],
+  [-5.0, -5.0]
+];
+
+// Fit and predict
+const labels = model.fitPredict(X);
+console.log(labels);
+// [1, 1, 1, 1, 1, -1, -1]
+// First 5 are inliers, last 2 are outliers
+
+// Get anomaly scores
+const scores = model.scoreSamples(X);
+console.log("Anomaly scores:");
+scores.forEach((score, i) => {
+  console.log(`  Sample ${i}: ${score.toFixed(4)}`);
+});
+
+// Decision function
+const decisions = model.decisionFunction(X);
+console.log("\nDecision values:");
+decisions.forEach((dec, i) => {
+  const label = dec >= 0 ? "inlier" : "outlier";
+  console.log(`  Sample ${i}: ${dec.toFixed(4)} (${label})`);
+});
+```
+
+### Example: Fraud Detection
+
+```typescript
+import { IsolationForest } from "bun-scikit";
+
+// Train on normal transactions
+const normalTransactions = [
+  [50, 1, 0],    // amount, num_items, international
+  [75, 2, 0],
+  [30, 1, 0],
+  [120, 3, 0],
+  [45, 1, 0],
+  [90, 2, 1],
+  [60, 1, 0]
+];
+
+// Fit model (expect 10% anomalies)
+const detector = new IsolationForest({ 
+  contamination: 0.1 
+});
+detector.fit(normalTransactions);
+
+// Check new transactions
+const newTransactions = [
+  [55, 1, 0],     // normal
+  [5000, 1, 1],   // suspicious: very high amount
+  [80, 2, 0],     // normal
+  [1, 50, 1]      // suspicious: many items, low amount
+];
+
+const predictions = detector.predict(newTransactions);
+const scores = detector.scoreSamples(newTransactions);
+
+console.log("Transaction analysis:");
+predictions.forEach((pred, i) => {
+  const status = pred === 1 ? "NORMAL" : "SUSPICIOUS";
+  console.log(`Transaction ${i + 1}: ${status} (score: ${scores[i].toFixed(2)})`);
+});
+```
+
+### Example: Sensor Data Monitoring
+
+```typescript
+import { IsolationForest } from "bun-scikit";
+
+// Historical sensor readings (temp, pressure, vibration)
+const historicalData = [
+  [20.1, 101.2, 0.05],
+  [20.5, 101.0, 0.04],
+  [19.8, 101.5, 0.06],
+  [20.3, 101.1, 0.05],
+  [20.0, 101.3, 0.04],
+  [20.2, 101.4, 0.05]
+];
+
+// Fit model on normal operating conditions
+const monitor = new IsolationForest({ 
+  contamination: 0.05 
+});
+monitor.fit(historicalData);
+
+// Monitor new readings
+const currentReadings = [
+  [20.1, 101.2, 0.05],  // normal
+  [25.0, 105.0, 0.30],  // anomaly: high temp, pressure, vibration
+  [20.2, 101.1, 0.04],  // normal
+];
+
+const alerts = monitor.predict(currentReadings);
+const anomalyScores = monitor.scoreSamples(currentReadings);
+
+console.log("Sensor monitoring:");
+alerts.forEach((alert, i) => {
+  if (alert === -1) {
+    console.log(`⚠️  ALERT: Anomaly detected in reading ${i + 1}`);
+    console.log(`   Score: ${anomalyScores[i].toFixed(4)}`);
+    console.log(`   Values: ${currentReadings[i]}`);
+  } else {
+    console.log(`✓  Reading ${i + 1}: Normal`);
+  }
+});
+```
+
+### Implementation Details
+
+The current implementation uses k-nearest neighbors distance:
+
+1. For each sample, compute distances to all training points
+2. Find the k nearest neighbors (k = min(10, n_samples - 1))
+3. Compute average distance to k nearest neighbors
+4. Anomaly score = negative average distance
+5. Threshold based on contamination parameter
+
+Samples with high average distance to neighbors are classified as anomalies.
+
+### Choosing Contamination
+
+```typescript
+// Known contamination rate
+new IsolationForest({ contamination: 0.05 }); // 5% outliers
+
+// Unknown contamination (conservative)
+new IsolationForest({ contamination: "auto" }); // assumes 10%
+
+// High contamination (noisy data)
+new IsolationForest({ contamination: 0.2 }); // 20% outliers
+
+// Low contamination (clean data)
+new IsolationForest({ contamination: 0.01 }); // 1% outliers
+```

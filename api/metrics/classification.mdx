@@ -1,0 +1,386 @@
+---
+title: Classification Metrics
+description: Metrics for evaluating classification models
+---
+
+Classification metrics for evaluating model performance on discrete prediction tasks.
+
+## accuracyScore
+
+Accuracy classification score - fraction of correctly classified samples.
+
+```typescript
+import { accuracyScore } from 'scikitjs';
+
+function accuracyScore(
+  yTrue: number[] | number[][],
+  yPred: number[] | number[][],
+  sampleWeight?: number[]
+): number;
+```
+
+<ParamField path="yTrue" type="number[] | number[][]" required>
+  True labels (single-label or multi-label)
+</ParamField>
+
+<ParamField path="yPred" type="number[] | number[][]" required>
+  Predicted labels
+</ParamField>
+
+<ParamField path="sampleWeight" type="number[]">
+  Sample weights for weighted accuracy
+</ParamField>
+
+### Example
+
+```typescript
+import { accuracyScore } from 'scikitjs';
+
+const yTrue = [0, 1, 2, 2, 1];
+const yPred = [0, 2, 1, 2, 1];
+
+const accuracy = accuracyScore(yTrue, yPred);
+console.log(accuracy); // 0.6
+```
+
+## precisionScore
+
+Precision - ratio of true positives to all positive predictions.
+
+```typescript
+function precisionScore(
+  yTrue: number[],
+  yPred: number[],
+  positiveLabel?: number,
+  sampleWeight?: number[]
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True binary labels
+</ParamField>
+
+<ParamField path="yPred" type="number[]" required>
+  Predicted binary labels
+</ParamField>
+
+<ParamField path="positiveLabel" type="number" default="1">
+  Label of the positive class
+</ParamField>
+
+<ParamField path="sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 1, 0, 1, 1];
+const yPred = [0, 1, 0, 0, 1, 1];
+
+const precision = precisionScore(yTrue, yPred);
+console.log(precision); // 1.0
+```
+
+## recallScore
+
+Recall (sensitivity) - ratio of true positives to all actual positives.
+
+```typescript
+function recallScore(
+  yTrue: number[],
+  yPred: number[],
+  positiveLabel?: number,
+  sampleWeight?: number[]
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True binary labels
+</ParamField>
+
+<ParamField path="yPred" type="number[]" required>
+  Predicted binary labels
+</ParamField>
+
+<ParamField path="positiveLabel" type="number" default="1">
+  Label of the positive class
+</ParamField>
+
+<ParamField path="sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 1, 0, 1, 1];
+const yPred = [0, 1, 0, 0, 1, 1];
+
+const recall = recallScore(yTrue, yPred);
+console.log(recall); // 0.75
+```
+
+## f1Score
+
+F1 score - harmonic mean of precision and recall.
+
+```typescript
+function f1Score(
+  yTrue: number[],
+  yPred: number[],
+  positiveLabel?: number,
+  sampleWeight?: number[]
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True binary labels
+</ParamField>
+
+<ParamField path="yPred" type="number[]" required>
+  Predicted binary labels
+</ParamField>
+
+<ParamField path="positiveLabel" type="number" default="1">
+  Label of the positive class
+</ParamField>
+
+<ParamField path="sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 1, 0, 1, 1];
+const yPred = [0, 1, 0, 0, 1, 1];
+
+const f1 = f1Score(yTrue, yPred);
+console.log(f1); // 0.857
+```
+
+## confusionMatrix
+
+Compute confusion matrix to evaluate classification accuracy.
+
+```typescript
+function confusionMatrix(
+  yTrue: number[],
+  yPred: number[],
+  labels?: number[]
+): {
+  labels: number[];
+  matrix: number[][];
+};
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True labels
+</ParamField>
+
+<ParamField path="yPred" type="number[]" required>
+  Predicted labels
+</ParamField>
+
+<ParamField path="labels" type="number[]">
+  List of labels to index the matrix
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 2, 0, 1, 2];
+const yPred = [0, 2, 1, 0, 0, 1];
+
+const cm = confusionMatrix(yTrue, yPred);
+console.log(cm.matrix);
+// [[2, 0, 0],
+//  [1, 0, 1],
+//  [0, 2, 0]]
+```
+
+## rocAucScore
+
+Compute Area Under the Receiver Operating Characteristic Curve (ROC AUC).
+
+```typescript
+function rocAucScore(
+  yTrue: number[],
+  yScore: number[]
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True binary labels (0 or 1)
+</ParamField>
+
+<ParamField path="yScore" type="number[]" required>
+  Target scores (probability estimates)
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 0, 1, 1];
+const yScore = [0.1, 0.4, 0.35, 0.8];
+
+const rocAuc = rocAucScore(yTrue, yScore);
+console.log(rocAuc); // 0.75
+```
+
+## logLoss
+
+Log loss (cross-entropy loss) for probabilistic predictions.
+
+```typescript
+function logLoss(
+  yTrue: number[],
+  yPredProb: number[] | number[][],
+  eps?: number
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True labels
+</ParamField>
+
+<ParamField path="yPredProb" type="number[] | number[][]" required>
+  Predicted probabilities (vector for binary, matrix for multi-class)
+</ParamField>
+
+<ParamField path="eps" type="number" default="1e-15">
+  Small constant to avoid log(0)
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 0, 1, 1];
+const yPredProb = [0.1, 0.2, 0.8, 0.9];
+
+const loss = logLoss(yTrue, yPredProb);
+console.log(loss); // ~0.173
+```
+
+## classificationReport
+
+Build a text report showing the main classification metrics.
+
+```typescript
+function classificationReport(
+  yTrue: number[],
+  yPred: number[],
+  labels?: number[]
+): {
+  labels: number[];
+  perLabel: Record<string, {
+    precision: number;
+    recall: number;
+    f1Score: number;
+    support: number;
+  }>;
+  accuracy: number;
+  macroAvg: { precision: number; recall: number; f1Score: number; support: number };
+  weightedAvg: { precision: number; recall: number; f1Score: number; support: number };
+};
+```
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 2, 2, 0];
+const yPred = [0, 0, 2, 2, 0];
+
+const report = classificationReport(yTrue, yPred);
+console.log(report.perLabel);
+// {
+//   '0': { precision: 0.67, recall: 1.0, f1Score: 0.8, support: 2 },
+//   '1': { precision: 0.0, recall: 0.0, f1Score: 0.0, support: 1 },
+//   '2': { precision: 1.0, recall: 1.0, f1Score: 1.0, support: 2 }
+// }
+```
+
+## matthewsCorrcoef
+
+Matthews correlation coefficient (MCC) - balanced measure for binary and multi-class classification.
+
+```typescript
+function matthewsCorrcoef(
+  yTrue: number[],
+  yPred: number[],
+  positiveLabel?: number
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True labels
+</ParamField>
+
+<ParamField path="yPred" type="number[]" required>
+  Predicted labels
+</ParamField>
+
+<ParamField path="positiveLabel" type="number" default="1">
+  Label of the positive class (for binary classification)
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [1, 1, 0, 0];
+const yPred = [1, 0, 1, 0];
+
+const mcc = matthewsCorrcoef(yTrue, yPred);
+console.log(mcc); // 0.0
+```
+
+## balancedAccuracyScore
+
+Balanced accuracy - average of recall obtained on each class.
+
+```typescript
+function balancedAccuracyScore(
+  yTrue: number[],
+  yPred: number[]
+): number;
+```
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 0, 0, 1, 0];
+const yPred = [0, 1, 0, 0, 0, 1];
+
+const balancedAcc = balancedAccuracyScore(yTrue, yPred);
+console.log(balancedAcc); // 0.625
+```
+
+## brierScoreLoss
+
+Brier score loss for probability predictions.
+
+```typescript
+function brierScoreLoss(
+  yTrue: number[],
+  yPredProb: number[] | number[][]
+): number;
+```
+
+<ParamField path="yTrue" type="number[]" required>
+  True labels
+</ParamField>
+
+<ParamField path="yPredProb" type="number[] | number[][]" required>
+  Predicted probabilities
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [0, 1, 1, 0];
+const yPredProb = [0.1, 0.9, 0.8, 0.3];
+
+const brierScore = brierScoreLoss(yTrue, yPredProb);
+console.log(brierScore); // 0.055
+```

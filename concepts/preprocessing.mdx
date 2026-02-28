@@ -1,0 +1,360 @@
+---
+title: Data Preprocessing & Scaling
+description: Learn how to prepare and transform your data using bun-scikit's preprocessing tools
+---
+
+Preprocessing is a critical step in the machine learning pipeline. bun-scikit provides a comprehensive set of transformers to clean, scale, and prepare your data for training.
+
+## Overview
+
+All preprocessing transformers in bun-scikit follow a consistent API pattern:
+
+- **`fit(X)`** - Learn parameters from training data
+- **`transform(X)`** - Apply the transformation
+- **`fitTransform(X)`** - Fit and transform in one step
+- **`inverseTransform(X)`** - Reverse the transformation (when applicable)
+
+<Note>
+  Preprocessing transformers store learned parameters with a trailing underscore (e.g., `mean_`, `scale_`) to indicate they were computed during fitting.
+</Note>
+
+## Standard Scaling
+
+Standardize features by removing the mean and scaling to unit variance. This is the most common preprocessing technique for many machine learning algorithms.
+
+<CodeGroup>
+```typescript Basic Usage
+import { StandardScaler } from "bun-scikit";
+
+const X = [
+  [1, 2],
+  [2, 4],
+  [3, 6],
+  [4, 8],
+];
+
+const scaler = new StandardScaler();
+const XScaled = scaler.fitTransform(X);
+
+console.log("Mean:", scaler.mean_);
+console.log("Scale:", scaler.scale_);
+```
+
+```typescript With Pipeline
+import { StandardScaler, LinearRegression, Pipeline } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["regressor", new LinearRegression()],
+]);
+
+pipeline.fit(XTrain, yTrain);
+const predictions = pipeline.predict(XTest);
+```
+</CodeGroup>
+
+### How It Works
+
+StandardScaler transforms each feature to have:
+- **Mean = 0**: Subtracts the mean from each value
+- **Standard deviation = 1**: Divides by the standard deviation
+
+The transformation formula is:
+
+```
+X_scaled = (X - mean) / std
+```
+
+<Accordion title="View Source Implementation">
+```typescript
+// Simplified from src/preprocessing/StandardScaler.ts
+fit(X: Matrix): this {
+  const nSamples = X.length;
+  const nFeatures = X[0].length;
+  const means = new Array(nFeatures).fill(0);
+  const variances = new Array(nFeatures).fill(0);
+
+  // Calculate means
+  for (let i = 0; i < nSamples; i += 1) {
+    for (let j = 0; j < nFeatures; j += 1) {
+      means[j] += X[i][j];
+    }
+  }
+  for (let j = 0; j < nFeatures; j += 1) {
+    means[j] /= nSamples;
+  }
+
+  // Calculate standard deviations
+  for (let i = 0; i < nSamples; i += 1) {
+    for (let j = 0; j < nFeatures; j += 1) {
+      const diff = X[i][j] - means[j];
+      variances[j] += diff * diff;
+    }
+  }
+
+  const scales = variances.map((v) => {
+    const std = Math.sqrt(v / nSamples);
+    return std === 0 ? 1 : std;  // Avoid division by zero
+  });
+
+  this.mean_ = means;
+  this.scale_ = scales;
+  return this;
+}
+```
+</Accordion>
+
+## Min-Max Scaling
+
+Scale features to a specific range (default: [0, 1]). Useful when you need bounded values or when the algorithm is sensitive to feature magnitude.
+
+```typescript
+import { MinMaxScaler } from "bun-scikit";
+
+const scaler = new MinMaxScaler({ featureRange: [0, 1] });
+const XScaled = scaler.fitTransform(X);
+
+// Access learned parameters
+console.log("Data min:", scaler.dataMin_);
+console.log("Data max:", scaler.dataMax_);
+```
+
+### Custom Range
+
+```typescript
+// Scale to [-1, 1] range
+const scaler = new MinMaxScaler({ featureRange: [-1, 1] });
+const XScaled = scaler.fitTransform(X);
+```
+
+## Other Scalers
+
+<Tabs>
+  <Tab title="RobustScaler">
+    Uses median and IQR instead of mean and standard deviation, making it robust to outliers.
+
+    ```typescript
+    import { RobustScaler } from "bun-scikit";
+
+    const scaler = new RobustScaler();
+    const XScaled = scaler.fitTransform(X);
+    ```
+  </Tab>
+  <Tab title="MaxAbsScaler">
+    Scales by dividing each feature by its maximum absolute value. Preserves sparsity and sign.
+
+    ```typescript
+    import { MaxAbsScaler } from "bun-scikit";
+
+    const scaler = new MaxAbsScaler();
+    const XScaled = scaler.fitTransform(X);
+    ```
+  </Tab>
+  <Tab title="Normalizer">
+    Scales individual samples to have unit norm (L1, L2, or max norm).
+
+    ```typescript
+    import { Normalizer } from "bun-scikit";
+
+    const normalizer = new Normalizer({ norm: "l2" });
+    const XNormalized = normalizer.fitTransform(X);
+    ```
+  </Tab>
+</Tabs>
+
+## Encoding Categorical Data
+
+### Label Encoding
+
+Convert categorical labels to numeric values.
+
+```typescript
+import { LabelEncoder } from "bun-scikit";
+
+const encoder = new LabelEncoder();
+const y = ["cat", "dog", "cat", "bird", "dog"];
+const yEncoded = encoder.fitTransform(y);
+// [0, 1, 0, 2, 1]
+
+console.log("Classes:", encoder.classes_);
+// ["cat", "dog", "bird"]
+```
+
+### One-Hot Encoding
+
+Convert categorical features into binary vectors.
+
+```typescript
+import { OneHotEncoder } from "bun-scikit";
+
+const encoder = new OneHotEncoder();
+const X = [["red"], ["blue"], ["green"], ["red"]];
+const XEncoded = encoder.fitTransform(X);
+// [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0]]
+```
+
+## Feature Engineering
+
+### Polynomial Features
+
+Generate polynomial and interaction features.
+
+```typescript
+import { PolynomialFeatures } from "bun-scikit";
+
+const X = [[1, 2], [3, 4]];
+
+const poly = new PolynomialFeatures({ degree: 2 });
+const XPoly = poly.fitTransform(X);
+// [[1, 1, 2, 1, 2, 4],     // [1, x1, x2, x1^2, x1*x2, x2^2]
+//  [1, 3, 4, 9, 12, 16]]
+```
+
+### Binarizer
+
+Threshold features to binary values.
+
+```typescript
+import { Binarizer } from "bun-scikit";
+
+const binarizer = new Binarizer({ threshold: 2.5 });
+const X = [[1, 2], [3, 4]];
+const XBinary = binarizer.transform(X);
+// [[0, 0], [1, 1]]
+```
+
+## Handling Missing Values
+
+Replace missing values using various strategies.
+
+```typescript
+import { SimpleImputer } from "bun-scikit";
+
+const X = [
+  [1, 2],
+  [NaN, 3],
+  [7, NaN],
+  [4, 5],
+];
+
+const imputer = new SimpleImputer({ strategy: "mean" });
+const XFilled = imputer.fitTransform(X);
+```
+
+<Tabs>
+  <Tab title="Mean Strategy">
+    ```typescript
+    const imputer = new SimpleImputer({ strategy: "mean" });
+    ```
+    Replaces missing values with the mean of each column.
+  </Tab>
+  <Tab title="Median Strategy">
+    ```typescript
+    const imputer = new SimpleImputer({ strategy: "median" });
+    ```
+    Replaces missing values with the median of each column (robust to outliers).
+  </Tab>
+  <Tab title="Most Frequent">
+    ```typescript
+    const imputer = new SimpleImputer({ strategy: "most_frequent" });
+    ```
+    Replaces missing values with the most frequent value in each column.
+  </Tab>
+  <Tab title="Constant">
+    ```typescript
+    const imputer = new SimpleImputer({ 
+      strategy: "constant", 
+      fillValue: 0 
+    });
+    ```
+    Replaces missing values with a specified constant.
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<Steps>
+  <Step title="Fit on training data only">
+    Always fit transformers on training data to prevent data leakage:
+    
+    ```typescript
+    scaler.fit(XTrain);
+    const XTrainScaled = scaler.transform(XTrain);
+    const XTestScaled = scaler.transform(XTest);  // Use same parameters
+    ```
+  </Step>
+  <Step title="Use pipelines">
+    Combine preprocessing and models in pipelines to ensure consistency:
+    
+    ```typescript
+    const pipeline = new Pipeline([
+      ["imputer", new SimpleImputer()],
+      ["scaler", new StandardScaler()],
+      ["model", new LinearRegression()],
+    ]);
+    ```
+  </Step>
+  <Step title="Check for finite values">
+    bun-scikit validates that inputs are finite (no NaN or Infinity) unless you're using an imputer:
+    
+    ```typescript
+    // This will throw an error if X contains NaN
+    scaler.fit(X);
+    
+    // Use SimpleImputer first to handle missing values
+    ```
+  </Step>
+</Steps>
+
+## Complete Example
+
+Here's a complete preprocessing workflow:
+
+```typescript
+import {
+  SimpleImputer,
+  StandardScaler,
+  PolynomialFeatures,
+  Pipeline,
+  LinearRegression,
+  trainTestSplit,
+} from "bun-scikit";
+
+// Sample data with missing values
+const X = [
+  [1, 2],
+  [NaN, 3],
+  [3, NaN],
+  [4, 5],
+  [5, 6],
+  [6, 7],
+];
+const y = [3, 5, 7, 9, 11, 13];
+
+// Split data
+const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y, {
+  testSize: 0.33,
+  randomState: 42,
+});
+
+// Create preprocessing pipeline
+const pipeline = new Pipeline([
+  ["imputer", new SimpleImputer({ strategy: "mean" })],
+  ["poly", new PolynomialFeatures({ degree: 2 })],
+  ["scaler", new StandardScaler()],
+  ["regressor", new LinearRegression()],
+]);
+
+// Fit and predict
+pipeline.fit(XTrain, yTrain);
+const predictions = pipeline.predict(XTest);
+const score = pipeline.score(XTest, yTest);
+
+console.log("R² Score:", score);
+```
+
+## Related Topics
+
+- [Model Training](/concepts/model-training) - Learn about the fit/predict pattern
+- [Pipelines](/concepts/pipelines) - Combine preprocessing and models
+- [Model Evaluation](/concepts/model-evaluation) - Evaluate your models

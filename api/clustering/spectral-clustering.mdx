@@ -1,0 +1,312 @@
+---
+title: 'SpectralClustering'
+description: 'Clustering using spectral decomposition of affinity matrix'
+---
+
+## Overview
+
+SpectralClustering applies clustering to a projection of the data onto a lower-dimensional space derived from the eigenvectors of the normalized affinity matrix. It works well for clusters that aren't necessarily convex or compact.
+
+## Constructor
+
+```typescript
+new SpectralClustering(options?: SpectralClusteringOptions)
+```
+
+### Parameters
+
+<ParamField path="options" type="SpectralClusteringOptions" default="{}">
+  Configuration options for spectral clustering
+  
+  <Expandable title="properties">
+    <ParamField path="nClusters" type="number" default="8">
+      Number of clusters to form. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="affinity" type="SpectralAffinity" default="rbf">
+      Method for constructing the affinity matrix. Options:
+      - `"rbf"`: Radial basis function (Gaussian) kernel
+      - `"nearest_neighbors"`: k-nearest neighbors graph
+      - `"precomputed"`: Use input data as affinity matrix
+    </ParamField>
+    
+    <ParamField path="gamma" type="number" default="1">
+      Kernel coefficient for RBF affinity. Must be finite and > 0. Larger values create tighter clusters.
+    </ParamField>
+    
+    <ParamField path="nNeighbors" type="number" default="10">
+      Number of neighbors for nearest_neighbors affinity. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="nInit" type="number" default="10">
+      Number of times KMeans will run with different centroid seeds. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="200">
+      Maximum iterations for both eigenvector computation and KMeans. Must be an integer >= 1.
+    </ParamField>
+    
+    <ParamField path="randomState" type="number" optional>
+      Seed for random number generator for reproducible results.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the spectral clustering model to the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where rows are samples and columns are features. If affinity is "precomputed", X should be a square affinity matrix.
+</ParamField>
+
+**Returns:** The fitted SpectralClustering instance (for method chaining).
+
+**Throws:** Error if nClusters exceeds sample count, affinity validation fails, or data validation fails.
+
+### fitPredict
+
+Fit the model and return cluster labels for training data.
+
+```typescript
+fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and predict on.
+</ParamField>
+
+**Returns:** Vector of cluster labels (integers from 0 to nClusters-1).
+
+## Properties
+
+<ParamField path="labels_" type="Vector | null">
+  Cluster labels for each training sample.
+</ParamField>
+
+<ParamField path="affinityMatrix_" type="Matrix | null">
+  Affinity matrix constructed from the input data.
+</ParamField>
+
+<ParamField path="embedding_" type="Matrix | null">
+  Spectral embedding of the training data (row-normalized eigenvectors).
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fitting.
+</ParamField>
+
+## Examples
+
+### Basic Spectral Clustering
+
+```typescript
+import { SpectralClustering } from 'bun-scikit';
+
+const X = [
+  [1, 1], [1.5, 1.8], [1.2, 1.1],
+  [8, 8], [8.2, 8.5], [8.5, 8.1],
+  [2, 10], [2.5, 10.2], [2.2, 10.5]
+];
+
+// Create and fit model
+const spectral = new SpectralClustering({
+  nClusters: 3,
+  affinity: 'rbf',
+  gamma: 1.0,
+  randomState: 42
+});
+
+spectral.fit(X);
+
+console.log('Cluster labels:', spectral.labels_);
+console.log('Embedding shape:', spectral.embedding_?.length, 'x', spectral.embedding_?.[0].length);
+```
+
+### Using Nearest Neighbors Affinity
+
+```typescript
+import { SpectralClustering } from 'bun-scikit';
+
+// Data with non-convex clusters
+const data = [
+  // Cluster 1: circular
+  [0, 0], [1, 0], [0, 1], [-1, 0], [0, -1],
+  // Cluster 2: elongated
+  [10, 0], [11, 0], [12, 0], [13, 0], [14, 0]
+];
+
+const spectral = new SpectralClustering({
+  nClusters: 2,
+  affinity: 'nearest_neighbors',
+  nNeighbors: 3,
+  randomState: 42
+});
+
+spectral.fit(data);
+console.log('Labels:', spectral.labels_);
+```
+
+### Tuning Gamma Parameter
+
+```typescript
+import { SpectralClustering } from 'bun-scikit';
+
+const X = [
+  [1, 1], [1.5, 1.8], [5, 5], [5.5, 5.2]
+];
+
+// Try different gamma values
+for (const gamma of [0.1, 1.0, 10.0]) {
+  const model = new SpectralClustering({
+    nClusters: 2,
+    affinity: 'rbf',
+    gamma,
+    randomState: 42
+  });
+  
+  model.fit(X);
+  console.log(`gamma=${gamma} labels:`, model.labels_);
+}
+
+// Lower gamma: broader influence (more connected)
+// Higher gamma: tighter influence (more separated)
+```
+
+### Precomputed Affinity Matrix
+
+```typescript
+import { SpectralClustering } from 'bun-scikit';
+
+// Custom affinity matrix (must be symmetric, non-negative)
+const affinityMatrix = [
+  [1.0, 0.9, 0.1, 0.05],
+  [0.9, 1.0, 0.15, 0.1],
+  [0.1, 0.15, 1.0, 0.85],
+  [0.05, 0.1, 0.85, 1.0]
+];
+
+const spectral = new SpectralClustering({
+  nClusters: 2,
+  affinity: 'precomputed',
+  randomState: 42
+});
+
+spectral.fit(affinityMatrix);
+console.log('Cluster labels:', spectral.labels_);
+```
+
+### Non-Convex Cluster Detection
+
+```typescript
+import { SpectralClustering } from 'bun-scikit';
+
+// Two concentric circles (challenging for KMeans)
+const innerCircle = Array.from({ length: 20 }, (_, i) => {
+  const angle = (i / 20) * 2 * Math.PI;
+  return [Math.cos(angle), Math.sin(angle)];
+});
+
+const outerCircle = Array.from({ length: 40 }, (_, i) => {
+  const angle = (i / 40) * 2 * Math.PI;
+  return [3 * Math.cos(angle), 3 * Math.sin(angle)];
+});
+
+const data = [...innerCircle, ...outerCircle];
+
+const spectral = new SpectralClustering({
+  nClusters: 2,
+  affinity: 'nearest_neighbors',
+  nNeighbors: 5,
+  randomState: 42
+});
+
+spectral.fit(data);
+
+// Should separate inner and outer circles
+console.log('Inner circle labels:', spectral.labels_!.slice(0, 20));
+console.log('Outer circle labels:', spectral.labels_!.slice(20));
+```
+
+### Analyzing the Embedding
+
+```typescript
+import { SpectralClustering } from 'bun-scikit';
+
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8], [8, 8]
+];
+
+const spectral = new SpectralClustering({
+  nClusters: 2,
+  affinity: 'rbf',
+  gamma: 1.0,
+  randomState: 42
+});
+
+spectral.fit(X);
+
+console.log('Original data shape:', X.length, 'x', X[0].length);
+console.log('Embedding shape:', spectral.embedding_!.length, 'x', spectral.embedding_![0].length);
+console.log('Spectral embedding:', spectral.embedding_);
+// The embedding is a lower-dimensional representation
+// where clusters are more separable
+```
+
+## Algorithm Details
+
+Spectral clustering works in several steps:
+
+1. **Affinity Matrix Construction**:
+   - RBF: `A[i,j] = exp(-gamma * ||xi - xj||²)`
+   - Nearest Neighbors: `A[i,j] = 1` if j in k-NN of i, else 0
+
+2. **Normalized Laplacian**:
+   - Compute degree matrix D
+   - Normalize: `L = D^(-1/2) * A * D^(-1/2)`
+
+3. **Eigenvector Computation**:
+   - Find top k eigenvectors of L
+   - Stack eigenvectors to form embedding matrix
+
+4. **Row Normalization**:
+   - Normalize each row of embedding to unit length
+
+5. **KMeans Clustering**:
+   - Apply KMeans to normalized embedding
+
+## Advantages
+
+- Finds arbitrarily shaped clusters
+- Works with non-convex clusters
+- Can capture complex cluster structures
+- Effective with graph-based data
+
+## Considerations
+
+- Computationally expensive for large datasets
+- Sensitive to parameter choices (gamma, nNeighbors)
+- Results depend on eigenvalue decomposition quality
+- May struggle with highly imbalanced cluster sizes
+
+## Parameter Selection Guide
+
+**affinity="rbf"**:
+- Use when clusters have smooth boundaries
+- Tune `gamma`: smaller = looser, larger = tighter
+- Start with gamma = 1 / (nFeatures * variance)
+
+**affinity="nearest_neighbors"**:
+- Use for elongated or irregular cluster shapes
+- Tune `nNeighbors`: smaller = finer structure, larger = coarser
+- Typical range: 5-20 neighbors
+
+**nClusters**:
+- Try multiple values and use evaluation metrics
+- Consider using eigenvector gap analysis

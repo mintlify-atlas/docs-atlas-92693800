@@ -1,0 +1,149 @@
+---
+title: FastICA
+description: Independent Component Analysis using the FastICA algorithm
+---
+
+## Overview
+
+FastICA separates multivariate signals into independent non-Gaussian components. It uses a fixed-point iteration algorithm to find maximally independent sources.
+
+## Constructor
+
+```typescript
+new FastICA(options?: FastICAOptions)
+```
+
+<ParamField path="options" type="FastICAOptions">
+  Configuration options for FastICA
+  
+  <Expandable title="properties">
+    <ParamField path="nComponents" type="number" optional>
+      Number of components to extract. If not set, uses min(nSamples, nFeatures).
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="400" optional>
+      Maximum number of iterations for convergence.
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-5" optional>
+      Convergence tolerance for stopping criterion.
+    </ParamField>
+    
+    <ParamField path="randomState" type="number" optional>
+      Seed for random number generator for reproducible results.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Estimate independent components from training data.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** The fitted FastICA instance
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Extract independent sources from data.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Independent sources of shape [nSamples, nComponents]
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and extract sources in one step.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Independent sources of shape [nSamples, nComponents]
+
+### inverseTransform
+
+```typescript
+inverseTransform(X: Matrix): Matrix
+```
+
+Reconstruct original data from independent sources.
+
+<ParamField path="X" type="Matrix" required>
+  Independent sources of shape [nSamples, nComponents]
+</ParamField>
+
+**Returns:** Reconstructed data of shape [nSamples, nFeatures]
+
+## Properties
+
+<ParamField path="components_" type="Matrix | null">
+  Unmixing matrix, shape [nComponents, nComponents]
+</ParamField>
+
+<ParamField path="mixing_" type="Matrix | null">
+  Mixing matrix, shape [nComponents, nComponents]
+</ParamField>
+
+<ParamField path="mean_" type="Vector | null">
+  Per-feature mean of training data
+</ParamField>
+
+<ParamField path="nIter_" type="number | null">
+  Number of iterations run for convergence
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit
+</ParamField>
+
+<ParamField path="nComponents_" type="number | null">
+  Number of components extracted
+</ParamField>
+
+## Example
+
+```typescript
+import { FastICA } from '@elucidate/elucidate';
+
+// Mixed signal data (e.g., audio sources)
+const mixedSignals = [
+  [0.5, 0.8, 0.3],
+  [1.2, 1.5, 1.0],
+  [0.9, 0.6, 0.7],
+  [1.5, 1.8, 1.2],
+  [0.3, 0.4, 0.2],
+];
+
+const ica = new FastICA({ 
+  nComponents: 2,
+  randomState: 42 
+});
+
+const sources = ica.fitTransform(mixedSignals);
+console.log('Independent sources:', sources);
+console.log('Mixing matrix:', ica.mixing_);
+console.log('Converged in', ica.nIter_, 'iterations');
+
+// Reconstruct mixed signals
+const reconstructed = ica.inverseTransform(sources);
+console.log('Reconstructed:', reconstructed);
+```

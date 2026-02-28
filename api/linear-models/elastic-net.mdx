@@ -1,0 +1,217 @@
+---
+title: ElasticNet
+description: Elastic Net regression combining L1 and L2 regularization
+---
+
+## Overview
+
+`ElasticNet` implements linear regression with combined L1 and L2 regularization. It combines the feature selection properties of Lasso (L1) with the coefficient shrinkage of Ridge (L2), making it particularly useful when features are correlated. ElasticNet uses coordinate descent optimization.
+
+## Constructor
+
+```typescript
+import { ElasticNet } from "bun-scikit";
+
+const model = new ElasticNet(options);
+```
+
+### Parameters
+
+<ParamField path="options" type="ElasticNetOptions" default="{}">
+  Configuration options for the model
+  
+  <Expandable title="properties">
+    <ParamField path="alpha" type="number" default="1">
+      Overall regularization strength. Higher values specify stronger regularization.
+    </ParamField>
+    
+    <ParamField path="l1Ratio" type="number" default="0.5">
+      Mixing parameter between L1 and L2 regularization:
+      - `l1Ratio = 0`: Pure L2 penalty (Ridge)
+      - `l1Ratio = 1`: Pure L1 penalty (Lasso)
+      - `0 < l1Ratio < 1`: Combination of L1 and L2
+      
+      The penalty is: `alpha * l1Ratio * |coef| + 0.5 * alpha * (1 - l1Ratio) * coef²`
+    </ParamField>
+    
+    <ParamField path="fitIntercept" type="boolean" default="true">
+      Whether to calculate the intercept for this model
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="1000">
+      Maximum number of coordinate descent iterations
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-4">
+      Tolerance for optimization convergence
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the elastic net regression model using training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+**Parameters:**
+- `X`: Training data matrix of shape `[nSamples, nFeatures]`
+- `y`: Target values vector of length `nSamples`
+- `sampleWeight`: Optional sample weights (not currently used)
+
+**Returns:** The fitted model instance
+
+**Example:**
+```typescript
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1, 2, 3, 4, 5];
+
+const en = new ElasticNet({ 
+  alpha: 0.01, 
+  l1Ratio: 0.5, 
+  maxIter: 2000, 
+  tolerance: 1e-8 
+});
+en.fit(X, y);
+```
+
+### predict
+
+Predict using the elastic net regression model.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+**Parameters:**
+- `X`: Samples matrix of shape `[nSamples, nFeatures]`
+
+**Returns:** Predicted values vector of length `nSamples`
+
+**Example:**
+```typescript
+const predictions = en.predict([[2.5]]);
+console.log(predictions[0]); // Predicted value
+```
+
+### score
+
+Return the coefficient of determination (R² score) of the prediction.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+**Parameters:**
+- `X`: Test samples matrix
+- `y`: True target values
+
+**Returns:** R² score (coefficient of determination)
+
+## Attributes
+
+After fitting, the following attributes are available:
+
+<ParamField path="coef_" type="Vector">
+  Estimated coefficients for the elastic net problem. Some coefficients may be exactly zero.
+</ParamField>
+
+<ParamField path="intercept_" type="number">
+  Independent term in the linear model
+</ParamField>
+
+<ParamField path="nIter_" type="number">
+  Number of iterations run by the coordinate descent solver
+</ParamField>
+
+## Complete Example
+
+```typescript
+import { ElasticNet } from "bun-scikit";
+
+// Training data
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1, 2, 3, 4, 5];
+
+// Create and fit the model
+const en = new ElasticNet({ 
+  alpha: 0.01, 
+  l1Ratio: 0.5, 
+  maxIter: 2000, 
+  tolerance: 1e-8 
+});
+en.fit(X, y);
+
+// Evaluate the model
+const r2 = en.score(X, y);
+console.log("R² score:", r2); // >0.98
+
+// Check convergence
+console.log("Iterations:", en.nIter_);
+
+// Inspect coefficients
+console.log("Coefficients:", en.coef_);
+console.log("Intercept:", en.intercept_);
+```
+
+## Comparison Example
+
+```typescript
+import { Ridge, Lasso, ElasticNet } from "bun-scikit";
+
+// Compare different regularization approaches
+const X = [[0], [1], [2], [3], [4], [5], [6], [7]];
+const y = [0, 1.1, 1.9, 3.1, 4.1, 4.9, 6.2, 7.1];
+
+const models = [
+  { name: "Ridge", model: new Ridge({ alpha: 0.1 }) },
+  { name: "Lasso", model: new Lasso({ alpha: 0.01, maxIter: 2000 }) },
+  { name: "ElasticNet (L1=0.2)", model: new ElasticNet({ alpha: 0.01, l1Ratio: 0.2 }) },
+  { name: "ElasticNet (L1=0.5)", model: new ElasticNet({ alpha: 0.01, l1Ratio: 0.5 }) },
+  { name: "ElasticNet (L1=0.8)", model: new ElasticNet({ alpha: 0.01, l1Ratio: 0.8 }) },
+];
+
+models.forEach(({ name, model }) => {
+  model.fit(X, y);
+  const r2 = model.score(X, y);
+  console.log(`${name} R²: ${r2.toFixed(4)}`);
+});
+```
+
+## Correlated Features Example
+
+```typescript
+import { ElasticNet, Lasso } from "bun-scikit";
+
+// Data with highly correlated features
+const X = [
+  [1.0, 1.1, 0.2],
+  [2.0, 2.0, 0.1],
+  [3.0, 3.2, -0.1],
+  [4.0, 3.9, 0.3],
+  [5.0, 5.1, -0.2],
+];
+const y = [3, 6, 9, 12, 15]; // y ≈ 3×(x₀ + x₁)/2
+
+// Lasso tends to pick one of the correlated features arbitrarily
+const lasso = new Lasso({ alpha: 0.1, maxIter: 2000 });
+lasso.fit(X, y);
+console.log("Lasso coefficients:", lasso.coef_);
+
+// ElasticNet tends to distribute weight between correlated features
+const en = new ElasticNet({ alpha: 0.1, l1Ratio: 0.5, maxIter: 2000 });
+en.fit(X, y);
+console.log("ElasticNet coefficients:", en.coef_);
+```
+
+## Notes
+
+- ElasticNet combines the benefits of Ridge and Lasso regularization.
+- When features are highly correlated, ElasticNet tends to select groups of correlated features, while Lasso picks one arbitrarily.
+- The `l1Ratio` parameter controls the balance between L1 and L2 penalties.
+- The coordinate descent algorithm is efficient for high-dimensional problems.
+- For automatic selection of the best `alpha` and `l1Ratio` values, see `ElasticNetCV`.

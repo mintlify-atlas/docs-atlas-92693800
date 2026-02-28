@@ -1,0 +1,550 @@
+---
+title: Building ML Pipelines
+description: Learn how to create end-to-end machine learning workflows with bun-scikit pipelines
+---
+
+Pipelines are a powerful way to chain together preprocessing steps and models into a single, cohesive workflow. They help prevent data leakage, ensure consistency, and make your code cleaner.
+
+## Why Use Pipelines?
+
+<Steps>
+  <Step title="Prevent data leakage">
+    Ensures that preprocessing is fit only on training data, then applied to test data:
+    
+    ```typescript
+    // Without pipeline - WRONG!
+    const scaler = new StandardScaler();
+    const XScaled = scaler.fitTransform(X);  // Leaked test data!
+    const { XTrain, XTest } = trainTestSplit(XScaled, y);
+    
+    // With pipeline - CORRECT!
+    const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y);
+    pipeline.fit(XTrain, yTrain);  // Only fits on training data
+    ```
+  </Step>
+  <Step title="Simplify your workflow">
+    One object handles everything from raw data to predictions:
+    
+    ```typescript
+    // Fit once, predict many times
+    pipeline.fit(XTrain, yTrain);
+    const predictions = pipeline.predict(XTest);
+    ```
+  </Step>
+  <Step title="Enable hyperparameter tuning">
+    Use pipelines with GridSearchCV to tune preprocessing and model parameters together:
+    
+    ```typescript
+    const grid = new GridSearchCV(pipeline, params);
+    grid.fit(X, y);
+    ```
+  </Step>
+</Steps>
+
+## Creating a Pipeline
+
+A pipeline is a sequence of named steps, where each step (except the last) must be a transformer, and the last step can be a transformer or a predictor.
+
+### Basic Example
+
+```typescript
+import { Pipeline, StandardScaler, LinearRegression } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["regressor", new LinearRegression()],
+]);
+
+// Use it like any other model
+pipeline.fit(XTrain, yTrain);
+const predictions = pipeline.predict(XTest);
+const score = pipeline.score(XTest, yTest);
+```
+
+### Step Naming Convention
+
+Each step is a tuple of `[name, transformer]`:
+
+```typescript
+const pipeline = new Pipeline([
+  ["step1", transformer1],  // String name, transformer object
+  ["step2", transformer2],
+  ["final", model],
+]);
+```
+
+<Note>
+  Step names must be unique and non-empty strings. They're used to access steps and set parameters.
+</Note>
+
+## Pipeline Workflow
+
+### During Fitting
+
+The pipeline applies `fitTransform()` to each intermediate step, passing the transformed data to the next step:
+
+<CodeGroup>
+```typescript Conceptual Flow
+// What happens during pipeline.fit(X, y):
+
+// Step 1: Fit and transform
+step1.fit(X, y);
+X1 = step1.transform(X);
+
+// Step 2: Fit and transform
+step2.fit(X1, y);
+X2 = step2.transform(X1);
+
+// Final step: Just fit (if it's a predictor)
+finalStep.fit(X2, y);
+```
+
+```typescript Real Example
+import { Pipeline, StandardScaler, PolynomialFeatures, LinearRegression } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],      // Centers and scales
+  ["poly", new PolynomialFeatures({ degree: 2 })],  // Adds polynomial features
+  ["regressor", new LinearRegression()], // Fits the model
+]);
+
+pipeline.fit(X, y);
+```
+</CodeGroup>
+
+### During Prediction
+
+The pipeline applies `transform()` to each intermediate step:
+
+```typescript
+// What happens during pipeline.predict(X):
+
+// Step 1: Transform only
+X1 = step1.transform(X);
+
+// Step 2: Transform only
+X2 = step2.transform(X1);
+
+// Final step: Predict
+predictions = finalStep.predict(X2);
+```
+
+## Accessing Pipeline Steps
+
+You can access individual steps in several ways:
+
+```typescript
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["model", new LinearRegression()],
+]);
+
+pipeline.fit(X, y);
+
+// Access via namedSteps_
+const scaler = pipeline.namedSteps_["scaler"];
+console.log("Mean:", scaler.mean_);
+
+// Access all steps
+console.log("All steps:", pipeline.steps_);
+// [["scaler", StandardScaler], ["model", LinearRegression]]
+```
+
+## Classification Pipelines
+
+Pipelines work seamlessly with classification models:
+
+```typescript
+import {
+  Pipeline,
+  StandardScaler,
+  LogisticRegression,
+  accuracyScore,
+} from "bun-scikit";
+
+const X = [
+  [0, 0], [0, 1], [1, 0], [1, 1],
+  [2, 2], [2, 3], [3, 2], [3, 3],
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["classifier", new LogisticRegression({ maxIter: 1000 })],
+]);
+
+pipeline.fit(X, y);
+
+// Classification methods work through the pipeline
+const predictions = pipeline.predict(X);
+const probabilities = pipeline.predictProba(X);
+const accuracy = pipeline.score(X, y);
+
+console.log("Accuracy:", accuracy);
+```
+
+## Complex Pipelines
+
+### Multiple Preprocessing Steps
+
+```typescript
+import {
+  Pipeline,
+  SimpleImputer,
+  StandardScaler,
+  PolynomialFeatures,
+  RandomForestRegressor,
+} from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["imputer", new SimpleImputer({ strategy: "mean" })],
+  ["scaler", new StandardScaler()],
+  ["poly", new PolynomialFeatures({ degree: 2 })],
+  ["forest", new RandomForestRegressor({ nEstimators: 100 })],
+]);
+
+pipeline.fit(XTrain, yTrain);
+const predictions = pipeline.predict(XTest);
+```
+
+### Pipeline with Feature Selection
+
+```typescript
+import {
+  Pipeline,
+  StandardScaler,
+  SelectKBest,
+  f_regression,
+  LinearRegression,
+} from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["selector", new SelectKBest({ scoreFunc: f_regression, k: 5 })],
+  ["regressor", new LinearRegression()],
+]);
+
+pipeline.fit(X, y);
+```
+
+## Setting Pipeline Parameters
+
+### During Initialization
+
+```typescript
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["model", new LogisticRegression({ 
+    learningRate: 0.1, 
+    maxIter: 1000 
+  })],
+]);
+```
+
+### After Creation with setParams
+
+Use double-underscore notation to set nested parameters:
+
+```typescript
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["model", new LogisticRegression()],
+]);
+
+// Set parameters on specific steps
+pipeline.setParams({
+  "model__learningRate": 0.01,
+  "model__maxIter": 5000,
+});
+
+pipeline.fit(X, y);
+```
+
+### Getting Pipeline Parameters
+
+```typescript
+const params = pipeline.getParams(true);  // true for nested params
+
+console.log(params);
+// {
+//   "scaler": StandardScaler { ... },
+//   "model": LogisticRegression { ... },
+//   "model__learningRate": 0.01,
+//   "model__maxIter": 5000,
+//   ...
+// }
+```
+
+## Pipeline with Sample Weights
+
+Pass sample weights through the entire pipeline:
+
+```typescript
+import { Pipeline, StandardScaler, LinearRegression } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["regressor", new LinearRegression()],
+]);
+
+const sampleWeight = [1, 2, 1, 3, 2];  // Give different weights to samples
+
+pipeline.fit(X, y, sampleWeight);
+```
+
+<Note>
+  Sample weights are automatically routed to all steps that support them.
+</Note>
+
+## Pipeline Methods
+
+Pipelines support all standard model methods:
+
+<Tabs>
+  <Tab title="fit()">
+    Train the entire pipeline.
+    
+    ```typescript
+    pipeline.fit(X, y, sampleWeight?);
+    ```
+    
+    Fits each step sequentially, transforming data between steps.
+  </Tab>
+  <Tab title="predict()">
+    Make predictions after fitting.
+    
+    ```typescript
+    const predictions = pipeline.predict(X);
+    ```
+    
+    Only works if the final step has a `predict()` method.
+  </Tab>
+  <Tab title="predictProba()">
+    Get probability estimates (classification).
+    
+    ```typescript
+    const probabilities = pipeline.predictProba(X);
+    ```
+    
+    Only works if the final step has a `predictProba()` method.
+  </Tab>
+  <Tab title="score()">
+    Evaluate the pipeline.
+    
+    ```typescript
+    const score = pipeline.score(XTest, yTest);
+    ```
+    
+    Returns R² for regression, accuracy for classification.
+  </Tab>
+  <Tab title="transform()">
+    Transform data through all steps.
+    
+    ```typescript
+    const XTransformed = pipeline.transform(X);
+    ```
+    
+    Only works if the final step has a `transform()` method.
+  </Tab>
+  <Tab title="fitTransform()">
+    Fit and transform in one step.
+    
+    ```typescript
+    const XTransformed = pipeline.fitTransform(X, y);
+    ```
+    
+    Useful when the pipeline ends with a transformer.
+  </Tab>
+</Tabs>
+
+## Hyperparameter Tuning with Pipelines
+
+Pipelines integrate seamlessly with GridSearchCV:
+
+```typescript
+import {
+  Pipeline,
+  StandardScaler,
+  LogisticRegression,
+  GridSearchCV,
+} from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["classifier", new LogisticRegression()],
+]);
+
+const paramGrid = {
+  "classifier__learningRate": [0.01, 0.1, 1.0],
+  "classifier__maxIter": [100, 1000, 5000],
+  "classifier__l2": [0, 0.1, 1.0],
+};
+
+const grid = new GridSearchCV(pipeline, paramGrid, { cv: 5 });
+grid.fit(X, y);
+
+console.log("Best parameters:", grid.bestParams_);
+console.log("Best score:", grid.bestScore_);
+
+// Use the best pipeline
+const bestPipeline = grid.bestEstimator_;
+const predictions = bestPipeline.predict(XTest);
+```
+
+## Complete Example
+
+Here's a real-world pipeline for a classification task:
+
+```typescript
+import {
+  Pipeline,
+  SimpleImputer,
+  StandardScaler,
+  PolynomialFeatures,
+  LogisticRegression,
+  trainTestSplit,
+  accuracyScore,
+  classificationReport,
+} from "bun-scikit";
+
+// Prepare data (with missing values)
+const X = [
+  [1, 2], [NaN, 3], [3, NaN], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9],
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+// Split data
+const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y, {
+  testSize: 0.25,
+  randomState: 42,
+});
+
+// Create comprehensive pipeline
+const pipeline = new Pipeline([
+  ["imputer", new SimpleImputer({ strategy: "mean" })],
+  ["poly", new PolynomialFeatures({ degree: 2 })],
+  ["scaler", new StandardScaler()],
+  ["classifier", new LogisticRegression({
+    solver: "gd",
+    learningRate: 0.1,
+    maxIter: 1000,
+    tolerance: 1e-5,
+  })],
+]);
+
+// Train
+pipeline.fit(XTrain, yTrain);
+
+// Evaluate
+const yPred = pipeline.predict(XTest);
+const accuracy = accuracyScore(yTest, yPred);
+const report = classificationReport(yTest, yPred);
+
+console.log("Accuracy:", accuracy);
+console.log("\nClassification Report:");
+for (const [label, metrics] of Object.entries(report.perLabel)) {
+  console.log(`Class ${label}:`);
+  console.log(`  Precision: ${metrics.precision.toFixed(3)}`);
+  console.log(`  Recall: ${metrics.recall.toFixed(3)}`);
+  console.log(`  F1-Score: ${metrics.f1Score.toFixed(3)}`);
+}
+
+// Inspect pipeline steps
+const imputer = pipeline.namedSteps_["imputer"];
+console.log("\nImputer learned means:", imputer.statistics_);
+
+const scaler = pipeline.namedSteps_["scaler"];
+console.log("Scaler learned means:", scaler.mean_);
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Always use pipelines with preprocessing">
+    This prevents accidentally fitting on test data:
+    
+    ```typescript
+    // WRONG: Fit scaler on all data
+    const XScaled = scaler.fitTransform(X);
+    trainTestSplit(XScaled, y);
+    
+    // CORRECT: Pipeline fits only on training data
+    const split = trainTestSplit(X, y);
+    pipeline.fit(split.XTrain, split.yTrain);
+    ```
+  </Step>
+  <Step title="Use meaningful step names">
+    Names help with debugging and parameter tuning:
+    
+    ```typescript
+    const pipeline = new Pipeline([
+      ["imputation", new SimpleImputer()],
+      ["scaling", new StandardScaler()],
+      ["classification", new LogisticRegression()],
+    ]);
+    ```
+  </Step>
+  <Step title="Order matters">
+    Put steps in the right order:
+    
+    1. Handle missing values (SimpleImputer)
+    2. Generate features (PolynomialFeatures)
+    3. Scale/normalize (StandardScaler)
+    4. Select features (SelectKBest)
+    5. Train model
+  </Step>
+  <Step title="Save pipelines for production">
+    A fitted pipeline contains everything needed for inference:
+    
+    ```typescript
+    pipeline.fit(XTrain, yTrain);
+    
+    // Later, in production:
+    const predictions = pipeline.predict(newData);
+    // All preprocessing is applied automatically!
+    ```
+  </Step>
+</Steps>
+
+## Advanced Topics
+
+### ColumnTransformer
+
+Apply different transformations to different columns:
+
+```typescript
+import { ColumnTransformer, StandardScaler, OneHotEncoder } from "bun-scikit";
+
+// Coming soon - apply different preprocessing to different columns
+const preprocessor = new ColumnTransformer([
+  ["num", new StandardScaler(), [0, 1, 2]],      // Numeric columns
+  ["cat", new OneHotEncoder(), [3, 4]],          // Categorical columns
+]);
+
+const pipeline = new Pipeline([
+  ["preprocessor", preprocessor],
+  ["classifier", new LogisticRegression()],
+]);
+```
+
+### FeatureUnion
+
+Combine multiple transformers in parallel:
+
+```typescript
+import { FeatureUnion, PCA, PolynomialFeatures } from "bun-scikit";
+
+// Coming soon - combine features from multiple sources
+const featureUnion = new FeatureUnion([
+  ["pca", new PCA({ nComponents: 2 })],
+  ["poly", new PolynomialFeatures({ degree: 2 })],
+]);
+```
+
+## Related Topics
+
+- [Data Preprocessing](/concepts/preprocessing) - Learn about transformers
+- [Model Training](/concepts/model-training) - Understand fit/predict
+- [Model Evaluation](/concepts/model-evaluation) - Evaluate pipelines
+- [Model Selection](/guides/model-selection) - Grid search with pipelines

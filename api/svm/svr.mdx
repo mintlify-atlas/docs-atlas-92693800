@@ -1,0 +1,362 @@
+---
+title: 'SVR'
+description: 'Support Vector Regression'
+---
+
+## Overview
+
+The `SVR` (Support Vector Regressor) implements epsilon-support vector regression. It finds a function that deviates from the training targets by a value no greater than epsilon for each training point, while being as flat as possible.
+
+## Constructor
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+const regressor = new SVR({
+  C: 1.0,
+  epsilon: 0.1,
+  kernel: 'rbf',
+  gamma: 'scale',
+  degree: 3,
+  coef0: 0
+});
+```
+
+### Parameters
+
+<ParamField path="C" type="number" default={1.0}>
+  Regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive.
+</ParamField>
+
+<ParamField path="epsilon" type="number" default={0.1}>
+  Epsilon in the epsilon-insensitive loss function. No penalty is associated with points predicted within epsilon distance of the actual value.
+</ParamField>
+
+<ParamField path="kernel" type="'linear' | 'poly' | 'rbf' | 'sigmoid'" default="rbf">
+  Kernel type to be used:
+  - `'linear'`: Linear kernel
+  - `'poly'`: Polynomial kernel
+  - `'rbf'`: Radial basis function kernel
+  - `'sigmoid'`: Sigmoid kernel
+</ParamField>
+
+<ParamField path="gamma" type="number | 'scale' | 'auto'" default="scale">
+  Kernel coefficient:
+  - `'scale'`: `1 / (n_features * X.variance())`
+  - `'auto'`: `1 / n_features`
+  - `number`: Custom gamma value
+</ParamField>
+
+<ParamField path="degree" type="number" default={3}>
+  Degree of the polynomial kernel function. Ignored by other kernels.
+</ParamField>
+
+<ParamField path="coef0" type="number" default={0}>
+  Independent term in polynomial and sigmoid kernels.
+</ParamField>
+
+## Methods
+
+### fit()
+
+Fit the SVM model according to the training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (continuous).
+</ParamField>
+
+<ParamField path="sampleWeight" type="Vector">
+  Sample weights (reserved for future use).
+</ParamField>
+
+**Returns:** `this` - The fitted regressor.
+
+### predict()
+
+Perform regression on samples.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector` - Predicted values.
+
+### score()
+
+Return the coefficient of determination (R²) of the prediction.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  True values.
+</ParamField>
+
+**Returns:** `number` - R² score.
+
+### getParams()
+
+Get parameters for this estimator.
+
+```typescript
+getParams(): SVROptions
+```
+
+**Returns:** `SVROptions` - Current parameter settings.
+
+### setParams()
+
+Set parameters for this estimator.
+
+```typescript
+setParams(params: Partial<SVROptions>): this
+```
+
+<ParamField path="params" type="Partial<SVROptions>" required>
+  Parameters to update.
+</ParamField>
+
+**Returns:** `this` - The updated regressor.
+
+## Attributes
+
+<ParamField path="dualCoef_" type="Vector">
+  Coefficients of the support vectors in the decision function.
+</ParamField>
+
+<ParamField path="intercept_" type="number">
+  Intercept term in the decision function.
+</ParamField>
+
+<ParamField path="support_" type="number[]">
+  Indices of support vectors in the training data.
+</ParamField>
+
+<ParamField path="supportVectors_" type="Matrix">
+  Support vectors.
+</ParamField>
+
+## Examples
+
+### Basic Regression
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+// Simple linear relationship
+const X = [[0], [1], [2], [3], [4]];
+const y = [0, 1, 2, 3, 4];
+
+const svr = new SVR({ kernel: 'linear', C: 1.0 });
+svr.fit(X, y);
+
+const predictions = svr.predict([[1.5], [2.5]]);
+console.log(predictions); // [1.5, 2.5] approximately
+```
+
+### Non-linear Regression with RBF Kernel
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+// Non-linear relationship (quadratic)
+const X = [[0], [1], [2], [3], [4]];
+const y = [0, 1, 4, 9, 16]; // y = x²
+
+const svr = new SVR({ 
+  kernel: 'rbf',
+  gamma: 'scale',
+  C: 100,
+  epsilon: 0.1
+});
+svr.fit(X, y);
+
+const predictions = svr.predict([[1.5], [2.5]]);
+console.log(predictions); // [2.25, 6.25] approximately
+```
+
+### Multi-dimensional Regression
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+// Price prediction based on [size, age]
+const X = [
+  [1000, 5],
+  [1200, 3],
+  [1500, 8],
+  [1800, 2],
+  [2000, 10]
+];
+const y = [150000, 180000, 170000, 220000, 200000];
+
+const svr = new SVR({ kernel: 'rbf', C: 1000 });
+svr.fit(X, y);
+
+const price = svr.predict([[1600, 5]]);
+console.log(`Predicted price: $${price[0]}`);
+```
+
+### Tuning Epsilon Parameter
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [1.1, 2.0, 2.9, 4.2, 4.8]; // Noisy linear data
+
+// Smaller epsilon (strict)
+const strictSVR = new SVR({ 
+  kernel: 'linear',
+  epsilon: 0.01,
+  C: 1.0
+});
+strictSVR.fit(X, y);
+
+// Larger epsilon (tolerant)
+const tolerantSVR = new SVR({ 
+  kernel: 'linear',
+  epsilon: 0.5,
+  C: 1.0
+});
+tolerantSVR.fit(X, y);
+
+console.log('Strict support vectors:', strictSVR.support_.length);
+console.log('Tolerant support vectors:', tolerantSVR.support_.length);
+// Larger epsilon typically results in fewer support vectors
+```
+
+### Polynomial Regression
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+// Polynomial relationship
+const X = [[0], [1], [2], [3], [4]];
+const y = [1, 2, 5, 10, 17]; // y = x² + 1
+
+const svr = new SVR({ 
+  kernel: 'poly',
+  degree: 2,
+  coef0: 1,
+  C: 100
+});
+svr.fit(X, y);
+
+const predictions = svr.predict([[1.5], [2.5]]);
+console.log(predictions);
+```
+
+### Model Evaluation
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+// Training data
+const XTrain = [[1], [2], [3], [4], [5], [6]];
+const yTrain = [2, 4, 6, 8, 10, 12];
+
+// Test data
+const XTest = [[2.5], [4.5]];
+const yTest = [5, 9];
+
+const svr = new SVR({ kernel: 'linear' });
+svr.fit(XTrain, yTrain);
+
+const r2 = svr.score(XTest, yTest);
+console.log(`R² score: ${r2}`);
+```
+
+### Comparing Kernels
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+const X = [[0], [1], [2], [3], [4]];
+const y = [0, 1, 4, 9, 16]; // y = x²
+
+// Linear kernel
+const linearSVR = new SVR({ kernel: 'linear', C: 1.0 });
+linearSVR.fit(X, y);
+
+// RBF kernel
+const rbfSVR = new SVR({ kernel: 'rbf', gamma: 'scale', C: 1.0 });
+rbfSVR.fit(X, y);
+
+// Polynomial kernel
+const polySVR = new SVR({ kernel: 'poly', degree: 2, C: 1.0 });
+polySVR.fit(X, y);
+
+const testPoint = [[2.5]];
+console.log('Linear:', linearSVR.predict(testPoint));
+console.log('RBF:', rbfSVR.predict(testPoint));
+console.log('Polynomial:', polySVR.predict(testPoint));
+```
+
+### Time Series Prediction
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+// Temperature over days with cyclic pattern
+const days = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const temps = [15, 18, 22, 20, 17, 16, 19, 23, 21, 18];
+
+const X = days.map(d => [d]);
+const y = temps;
+
+const svr = new SVR({ 
+  kernel: 'rbf',
+  gamma: 'auto',
+  C: 10
+});
+svr.fit(X, y);
+
+// Predict future days
+const futureDays = [[11], [12]];
+const predictions = svr.predict(futureDays);
+console.log('Predicted temperatures:', predictions);
+```
+
+### Inspecting Support Vectors
+
+```typescript
+import { SVR } from '@scikitjs/sklearn';
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [2, 4, 6, 8, 10];
+
+const svr = new SVR({ kernel: 'linear', epsilon: 0.1 });
+svr.fit(X, y);
+
+console.log('Support vector indices:', svr.support_);
+console.log('Support vectors:', svr.supportVectors_);
+console.log('Dual coefficients:', svr.dualCoef_);
+console.log('Intercept:', svr.intercept_);
+```
+
+## Notes
+
+- The epsilon parameter defines a margin of tolerance where no penalty is given to errors
+- Support vectors are samples outside the epsilon-tube or on the margin
+- Larger C values lead to less regularization (tighter fit to training data)
+- The RBF kernel is effective for non-linear relationships
+- Feature scaling is recommended for optimal performance
+- The model uses a Gram matrix approach with ridge regression for efficient computation

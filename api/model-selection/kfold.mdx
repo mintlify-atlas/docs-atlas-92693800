@@ -1,0 +1,130 @@
+---
+title: KFold
+description: K-Folds cross-validator for splitting data into k consecutive folds
+---
+
+## Class Signature
+
+```typescript
+class KFold {
+  constructor(options?: KFoldOptions)
+  split<TX>(X: TX[], y?: unknown[]): FoldIndices[]
+}
+```
+
+## Constructor
+
+<ParamField path="options" type="KFoldOptions">
+  Configuration options for K-Fold cross-validation
+
+  <Expandable title="properties">
+    <ParamField path="nSplits" type="number" default="5">
+      Number of folds. Must be at least 2.
+    </ParamField>
+
+    <ParamField path="shuffle" type="boolean" default="false">
+      Whether to shuffle the data before splitting into folds
+    </ParamField>
+
+    <ParamField path="randomState" type="number" default="42">
+      Random seed for reproducible shuffling when `shuffle=true`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### split
+
+Generate train/test indices to split data into k consecutive folds.
+
+```typescript
+split<TX>(X: TX[], y?: unknown[]): FoldIndices[]
+```
+
+<ParamField path="X" type="TX[]" required>
+  Feature array to split
+</ParamField>
+
+<ParamField path="y" type="unknown[]">
+  Target array (optional, used only for length validation)
+</ParamField>
+
+**Returns:** Array of `FoldIndices` objects, each containing:
+- `trainIndices: number[]` - Indices for the training set
+- `testIndices: number[]` - Indices for the test set
+
+## Description
+
+K-Fold cross-validator divides all samples into k groups (folds) of approximately equal size. Each fold is used once as a validation set while the remaining k-1 folds form the training set.
+
+This is useful for:
+- Evaluating model performance with limited data
+- Detecting overfitting
+- Comparing different models or hyperparameters
+
+## Example
+
+```typescript
+import { KFold } from 'bun-scikit';
+import { LinearRegression } from 'bun-scikit';
+
+const X = [
+  [1], [2], [3], [4], [5],
+  [6], [7], [8], [9], [10]
+];
+const y = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+// Create 5-fold cross-validator
+const kf = new KFold({ nSplits: 5, shuffle: true, randomState: 42 });
+const folds = kf.split(X, y);
+
+console.log('Number of folds:', folds.length); // 5
+
+// Perform cross-validation manually
+const scores: number[] = [];
+
+for (const fold of folds) {
+  // Extract train and test sets
+  const XTrain = fold.trainIndices.map(i => X[i]);
+  const yTrain = fold.trainIndices.map(i => y[i]);
+  const XTest = fold.testIndices.map(i => X[i]);
+  const yTest = fold.testIndices.map(i => y[i]);
+
+  // Train and evaluate model
+  const model = new LinearRegression();
+  model.fit(XTrain, yTrain);
+  const score = model.score(XTest, yTest);
+  scores.push(score);
+}
+
+const avgScore = scores.reduce((a, b) => a + b) / scores.length;
+console.log('Average R² score:', avgScore);
+```
+
+## Cross-Validation with Different Folds
+
+```typescript
+import { KFold } from 'bun-scikit';
+
+// 3-fold split (more training data per fold)
+const kf3 = new KFold({ nSplits: 3 });
+const folds3 = kf3.split(X);
+// Each fold: ~67% train, ~33% test
+
+// 10-fold split (less variance, more computation)
+const kf10 = new KFold({ nSplits: 10 });
+const folds10 = kf10.split(X);
+// Each fold: ~90% train, ~10% test
+
+// Without shuffling (preserves order)
+const kfOrdered = new KFold({ nSplits: 5, shuffle: false });
+const orderedFolds = kfOrdered.split(X);
+```
+
+## Notes
+
+- `nSplits` must be at least 2 and cannot exceed the number of samples
+- When the number of samples is not evenly divisible by `nSplits`, the first `n % nSplits` folds will have one extra sample
+- For classification problems with imbalanced classes, consider using `StratifiedKFold` instead
+- Setting `shuffle=true` is recommended to avoid bias from ordered data

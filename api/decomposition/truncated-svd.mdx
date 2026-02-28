@@ -1,0 +1,147 @@
+---
+title: TruncatedSVD
+description: Dimensionality reduction using truncated Singular Value Decomposition
+---
+
+## Overview
+
+TruncatedSVD performs linear dimensionality reduction by projecting data onto a lower-dimensional space using truncated SVD. Unlike PCA, it does not center the data, making it suitable for sparse matrices.
+
+## Constructor
+
+```typescript
+new TruncatedSVD(options?: TruncatedSVDOptions)
+```
+
+<ParamField path="options" type="TruncatedSVDOptions">
+  Configuration options for TruncatedSVD
+  
+  <Expandable title="properties">
+    <ParamField path="nComponents" type="number" default="2" optional>
+      Number of components to compute.
+    </ParamField>
+    
+    <ParamField path="nIter" type="number" default="10" optional>
+      Number of iterations for randomized SVD solver.
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-7" optional>
+      Convergence tolerance for power iteration.
+    </ParamField>
+    
+    <ParamField path="randomState" type="number" optional>
+      Seed for random number generator. Use for reproducible results.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute truncated SVD from training data.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** The fitted TruncatedSVD instance
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Project data onto singular components.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and transform data in one step.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### inverseTransform
+
+```typescript
+inverseTransform(X: Matrix): Matrix
+```
+
+Reconstruct original data from transformed components.
+
+<ParamField path="X" type="Matrix" required>
+  Transformed data of shape [nSamples, nComponents]
+</ParamField>
+
+**Returns:** Reconstructed data of shape [nSamples, nFeatures]
+
+## Properties
+
+<ParamField path="components_" type="Matrix | null">
+  Right singular vectors, shape [nComponents, nFeatures]
+</ParamField>
+
+<ParamField path="explainedVariance_" type="Vector | null">
+  Variance explained by each component
+</ParamField>
+
+<ParamField path="explainedVarianceRatio_" type="Vector | null">
+  Percentage of variance explained by each component
+</ParamField>
+
+<ParamField path="singularValues_" type="Vector | null">
+  The singular values corresponding to each component
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit
+</ParamField>
+
+<ParamField path="nComponents_" type="number | null">
+  Number of components extracted
+</ParamField>
+
+## Example
+
+```typescript
+import { TruncatedSVD } from '@elucidate/elucidate';
+
+const data = [
+  [1, 2, 3, 4, 5],
+  [6, 7, 8, 9, 10],
+  [11, 12, 13, 14, 15],
+  [16, 17, 18, 19, 20],
+];
+
+const svd = new TruncatedSVD({ 
+  nComponents: 2,
+  randomState: 42 
+});
+
+const transformed = svd.fitTransform(data);
+console.log('Transformed:', transformed);
+console.log('Explained variance ratio:', svd.explainedVarianceRatio_);
+console.log('Singular values:', svd.singularValues_);
+
+// Reconstruct data
+const reconstructed = svd.inverseTransform(transformed);
+console.log('Reconstructed:', reconstructed);
+```

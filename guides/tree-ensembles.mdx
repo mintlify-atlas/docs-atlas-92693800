@@ -1,0 +1,529 @@
+---
+title: "Tree-Based Models & Ensembles"
+description: "Decision trees, random forests, and gradient boosting in bun-scikit"
+---
+
+## Overview
+
+Tree-based models are powerful non-linear algorithms that work by learning decision rules from features. Ensemble methods combine multiple trees to achieve better performance and robustness.
+
+<CardGroup cols={2}>
+  <Card title="Decision Trees" icon="tree" href="#decision-trees">
+    Single tree classifiers and regressors
+  </Card>
+  <Card title="Random Forests" icon="trees" href="#random-forests">
+    Bagging ensemble of decision trees
+  </Card>
+  <Card title="Gradient Boosting" icon="rocket" href="#gradient-boosting">
+    Sequential boosting algorithms
+  </Card>
+  <Card title="Other Ensembles" icon="layer-group" href="#other-ensembles">
+    Bagging, AdaBoost, and more
+  </Card>
+</CardGroup>
+
+## Decision Trees
+
+Decision trees learn hierarchical decision rules to partition the feature space.
+
+### Decision Tree Classifier
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const X = [
+  [0, 0],
+  [1, 1],
+  [0, 1],
+  [1, 0],
+];
+const y = [0, 0, 1, 1];
+
+const tree = new DecisionTreeClassifier({
+  maxDepth: 5,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  maxFeatures: "sqrt",
+  randomState: 42,
+});
+
+tree.fit(X, y);
+
+const predictions = tree.predict([[0.5, 0.5]]);
+console.log(predictions);
+
+// Get prediction probabilities
+const probabilities = tree.predictProba([[0.5, 0.5]]);
+console.log(probabilities); // [[0.5, 0.5]]
+```
+
+### Configuration Options
+
+<ParamField path="maxDepth" type="number" default="undefined">
+  Maximum depth of the tree. Unlimited if not specified.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node
+</ParamField>
+
+<ParamField path="maxFeatures" type="'sqrt' | 'log2' | number | null" default="null">
+  Number of features to consider when looking for the best split
+</ParamField>
+
+<ParamField path="randomState" type="number" default="undefined">
+  Random seed for reproducibility
+</ParamField>
+
+### Decision Tree Regressor
+
+```typescript
+import { DecisionTreeRegressor } from "bun-scikit";
+
+const X = [[0], [1], [2], [3], [4]];
+const y = [0, 1, 4, 9, 16]; // y = x²
+
+const regressor = new DecisionTreeRegressor({
+  maxDepth: 10,
+  minSamplesSplit: 2,
+});
+
+regressor.fit(X, y);
+const predictions = regressor.predict([[2.5]]);
+console.log(predictions);
+```
+
+### Feature Importance
+
+```typescript
+tree.fit(X, y);
+
+if (tree.featureImportances_) {
+  console.log("Feature importances:", tree.featureImportances_);
+  
+  // Find most important feature
+  const maxIdx = tree.featureImportances_.indexOf(
+    Math.max(...tree.featureImportances_)
+  );
+  console.log(`Most important feature: ${maxIdx}`);
+}
+```
+
+<Note>
+  Decision trees use native Zig backend by default when `BUN_SCIKIT_TREE_BACKEND=zig`. This provides significant performance improvements.
+</Note>
+
+## Random Forests
+
+Random forests build multiple decision trees and aggregate their predictions through voting (classification) or averaging (regression).
+
+### Random Forest Classifier
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+const X = [
+  [0, 0], [0.1, -0.1],
+  [1, 1], [1.1, 0.9],
+  [5, 5], [5.1, 4.9],
+];
+const y = [0, 0, 1, 1, 2, 2];
+
+const forest = new RandomForestClassifier({
+  nEstimators: 100,
+  maxDepth: 12,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  maxFeatures: "sqrt",
+  bootstrap: true,
+  randomState: 42,
+});
+
+forest.fit(X, y);
+
+console.log(forest.classes_); // [0, 1, 2]
+console.log(forest.fitBackend_); // "zig" when native backend enabled
+
+const predictions = forest.predict([[0.5, 0.5], [5.2, 5.1]]);
+console.log(predictions);
+
+// Get class probabilities
+const probabilities = forest.predictProba([[1, 1]]);
+console.log(probabilities); // [[0.05, 0.90, 0.05]]
+```
+
+### Configuration Options
+
+<ParamField path="nEstimators" type="number" default="50">
+  Number of trees in the forest
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="12">
+  Maximum depth of each tree
+</ParamField>
+
+<ParamField path="maxFeatures" type="'sqrt' | 'log2' | number | null" default="'sqrt'">
+  Number of features to consider for each split. 'sqrt' uses √n_features.
+</ParamField>
+
+<ParamField path="bootstrap" type="boolean" default="true">
+  Whether to use bootstrap samples when building trees
+</ParamField>
+
+<ParamField path="randomState" type="number" default="undefined">
+  Random seed for reproducibility
+</ParamField>
+
+### Random Forest Regressor
+
+```typescript
+import { RandomForestRegressor } from "bun-scikit";
+
+const X = [
+  [1, 2], [2, 3], [3, 4],
+  [4, 5], [5, 6], [6, 7],
+];
+const y = [10, 20, 30, 40, 50, 60];
+
+const rfRegressor = new RandomForestRegressor({
+  nEstimators: 100,
+  maxDepth: 10,
+  randomState: 42,
+});
+
+rfRegressor.fit(X, y);
+const predictions = rfRegressor.predict([[3.5, 4.5]]);
+console.log(predictions);
+```
+
+### Feature Importance Analysis
+
+```typescript
+forest.fit(X, y);
+
+if (forest.featureImportances_) {
+  const importances = forest.featureImportances_;
+  
+  // Create feature ranking
+  const ranking = importances
+    .map((importance, idx) => ({ feature: idx, importance }))
+    .sort((a, b) => b.importance - a.importance);
+  
+  console.log("Top 3 features:");
+  ranking.slice(0, 3).forEach(({ feature, importance }) => {
+    console.log(`  Feature ${feature}: ${importance.toFixed(4)}`);
+  });
+}
+```
+
+## Gradient Boosting
+
+Gradient boosting builds trees sequentially, with each tree correcting errors made by previous trees.
+
+### Gradient Boosting Classifier
+
+```typescript
+import { GradientBoostingClassifier } from "bun-scikit";
+
+const X = [
+  [0, 0], [0, 1],
+  [1, 0], [1, 1],
+];
+const y = [0, 1, 1, 0]; // XOR problem
+
+const gbm = new GradientBoostingClassifier({
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 3,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  subsample: 1.0,
+  randomState: 42,
+});
+
+gbm.fit(X, y);
+
+const predictions = gbm.predict([[0, 0], [1, 1]]);
+console.log(predictions);
+
+const probabilities = gbm.predictProba([[0.5, 0.5]]);
+console.log(probabilities);
+```
+
+### Configuration
+
+<ParamField path="nEstimators" type="number" default="100">
+  Number of boosting stages to perform
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="0.1">
+  Learning rate shrinks the contribution of each tree
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="3">
+  Maximum depth of individual trees
+</ParamField>
+
+<ParamField path="subsample" type="number" default="1.0">
+  Fraction of samples to use for fitting individual trees (< 1.0 enables stochastic gradient boosting)
+</ParamField>
+
+### Gradient Boosting Regressor
+
+```typescript
+import { GradientBoostingRegressor } from "bun-scikit";
+
+const X = [[i] for (let i = 0; i < 100; i++)];
+const y = X.map(([x]) => Math.sin(x / 10) * 50);
+
+const gbr = new GradientBoostingRegressor({
+  nEstimators: 100,
+  learningRate: 0.1,
+  maxDepth: 4,
+});
+
+gbr.fit(X, y);
+const predictions = gbr.predict([[50]]);
+```
+
+### Histogram-Based Gradient Boosting
+
+For large datasets, use histogram-based gradient boosting:
+
+```typescript
+import { HistGradientBoostingClassifier } from "bun-scikit";
+
+const histGbm = new HistGradientBoostingClassifier({
+  maxIter: 100,
+  maxDepth: 10,
+  learningRate: 0.1,
+});
+
+histGbm.fit(X, y);
+```
+
+<Tip>
+  Histogram-based boosting is significantly faster on large datasets (> 10k samples) by binning continuous features.
+</Tip>
+
+## Other Ensembles
+
+### Extra Trees
+
+Extremely Randomized Trees use random thresholds instead of optimal thresholds:
+
+```typescript
+import { ExtraTreesClassifier, ExtraTreesRegressor } from "bun-scikit";
+
+const extraTrees = new ExtraTreesClassifier({
+  nEstimators: 100,
+  maxDepth: 10,
+  randomState: 42,
+});
+
+extraTrees.fit(X, y);
+```
+
+### AdaBoost
+
+Adaptive Boosting weights samples based on classification difficulty:
+
+```typescript
+import { AdaBoostClassifier } from "bun-scikit";
+
+const adaboost = new AdaBoostClassifier({
+  nEstimators: 50,
+  learningRate: 1.0,
+  randomState: 42,
+});
+
+adaboost.fit(X, y);
+```
+
+### Bagging
+
+Bootstrap Aggregating with any base estimator:
+
+```typescript
+import { BaggingClassifier } from "bun-scikit";
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const bagging = new BaggingClassifier({
+  baseEstimator: new DecisionTreeClassifier({ maxDepth: 5 }),
+  nEstimators: 10,
+  maxSamples: 1.0,
+  bootstrap: true,
+  randomState: 42,
+});
+
+bagging.fit(X, y);
+```
+
+### Voting Ensemble
+
+Combine multiple different estimators:
+
+```typescript
+import { VotingClassifier } from "bun-scikit";
+import { LogisticRegression } from "bun-scikit";
+import { RandomForestClassifier } from "bun-scikit";
+import { GradientBoostingClassifier } from "bun-scikit";
+
+const voting = new VotingClassifier({
+  estimators: [
+    ["lr", new LogisticRegression()],
+    ["rf", new RandomForestClassifier({ nEstimators: 50 })],
+    ["gb", new GradientBoostingClassifier({ nEstimators: 50 })],
+  ],
+  voting: "soft", // Use predict_proba
+});
+
+voting.fit(X, y);
+```
+
+### Stacking
+
+Stack predictions from multiple models:
+
+```typescript
+import { StackingClassifier } from "bun-scikit";
+import { LogisticRegression } from "bun-scikit";
+import { RandomForestClassifier } from "bun-scikit";
+
+const stacking = new StackingClassifier({
+  estimators: [
+    ["rf", new RandomForestClassifier()],
+    ["gb", new GradientBoostingClassifier()],
+  ],
+  finalEstimator: new LogisticRegression(),
+  cv: 5,
+});
+
+stacking.fit(X, y);
+```
+
+## Performance Optimization
+
+<AccordionGroup>
+  <Accordion title="Native Zig Backend">
+    Enable Zig backend for significant speedup:
+    ```bash
+    export BUN_SCIKIT_TREE_BACKEND=zig
+    bun run native:build
+    ```
+    This provides 5-10x speedup for tree training.
+  </Accordion>
+
+  <Accordion title="Parallel Training">
+    Random forests train trees independently and can benefit from parallel execution. The native backend handles this automatically.
+  </Accordion>
+
+  <Accordion title="Memory Management">
+    For large datasets:
+    - Reduce `maxDepth` to limit tree size
+    - Use `maxFeatures` to limit split candidates
+    - Enable `bootstrap=true` for random forests
+    - Use histogram-based boosting for 100k+ samples
+  </Accordion>
+</AccordionGroup>
+
+## Hyperparameter Tuning
+
+### Grid Search for Random Forest
+
+```typescript
+import { GridSearchCV } from "bun-scikit";
+import { RandomForestClassifier } from "bun-scikit";
+
+const search = new GridSearchCV(
+  (params) => new RandomForestClassifier({
+    nEstimators: params.nEstimators as number,
+    maxDepth: params.maxDepth as number,
+    maxFeatures: params.maxFeatures as "sqrt" | "log2",
+  }),
+  {
+    nEstimators: [50, 100, 200],
+    maxDepth: [10, 20, 30],
+    maxFeatures: ["sqrt", "log2"],
+  },
+  { cv: 5, scoring: "accuracy" }
+);
+
+search.fit(X, y);
+
+console.log("Best parameters:", search.bestParams_);
+console.log("Best score:", search.bestScore_);
+```
+
+## Common Patterns
+
+### Early Stopping for Gradient Boosting
+
+```typescript
+const X_train = X.slice(0, 80);
+const y_train = y.slice(0, 80);
+const X_val = X.slice(80);
+const y_val = y.slice(80);
+
+const gbm = new GradientBoostingClassifier({ nEstimators: 1000 });
+
+for (let n = 50; n <= 1000; n += 50) {
+  const partial = new GradientBoostingClassifier({ nEstimators: n });
+  partial.fit(X_train, y_train);
+  const score = partial.score(X_val, y_val);
+  console.log(`n=${n}, validation accuracy=${score.toFixed(4)}`);
+}
+```
+
+### Out-of-Bag Evaluation
+
+```typescript
+const rf = new RandomForestClassifier({
+  nEstimators: 100,
+  bootstrap: true,
+  oobScore: true, // Enable OOB scoring if available
+});
+
+rf.fit(X, y);
+// Check rf.oobScore_ for out-of-bag accuracy
+```
+
+## When to Use Each Model
+
+<CardGroup cols={2}>
+  <Card title="Decision Trees" icon="tree">
+    - Interpretable models
+    - Small datasets
+    - Quick prototyping
+  </Card>
+  <Card title="Random Forests" icon="trees">
+    - General-purpose classification/regression
+    - Robust to overfitting
+    - Feature importance needed
+  </Card>
+  <Card title="Gradient Boosting" icon="rocket">
+    - Maximum accuracy
+    - Structured/tabular data
+    - Competitions
+  </Card>
+  <Card title="Extra Trees" icon="sparkles">
+    - Faster training than RF
+    - More randomization
+    - Less prone to overfitting
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Selection" icon="sliders" href="/guides/model-selection">
+    Cross-validation and tuning
+  </Card>
+  <Card title="Zig Acceleration" icon="bolt" href="/guides/zig-acceleration">
+    Enable native backend for 10x speedup
+  </Card>
+</CardGroup>

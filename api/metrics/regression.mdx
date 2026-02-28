@@ -1,0 +1,216 @@
+---
+title: Regression Metrics
+description: Metrics for evaluating regression models
+---
+
+Regression metrics for evaluating model performance on continuous prediction tasks.
+
+## meanSquaredError
+
+Mean Squared Error (MSE) - average of squared differences between predictions and actual values.
+
+```typescript
+import { meanSquaredError } from 'scikitjs';
+
+function meanSquaredError(
+  yTrue: number[] | number[][],
+  yPred: number[] | number[][],
+  options?: RegressionMetricOptions
+): number | number[];
+```
+
+<ParamField path="yTrue" type="number[] | number[][]" required>
+  True target values (vector or matrix for multi-output)
+</ParamField>
+
+<ParamField path="yPred" type="number[] | number[][]" required>
+  Predicted target values (must match yTrue dimensions)
+</ParamField>
+
+<ParamField path="options.sampleWeight" type="number[]">
+  Sample weights for weighted average
+</ParamField>
+
+<ParamField path="options.multioutput" type="'uniform_average' | 'raw_values' | 'variance_weighted'">
+  Defines aggregating strategy for multi-output:
+  - `'uniform_average'` (default): uniformly weighted mean
+  - `'raw_values'`: returns full set of scores
+  - `'variance_weighted'`: scores weighted by target variance
+</ParamField>
+
+### Example
+
+```typescript
+import { meanSquaredError } from 'scikitjs';
+
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const mse = meanSquaredError(yTrue, yPred);
+console.log(mse); // 0.375
+
+// Multi-output
+const yTrueMulti = [[0.5, 1], [-1, 1], [7, -6]];
+const yPredMulti = [[0, 2], [-1, 2], [8, -5]];
+
+const mseMulti = meanSquaredError(yTrueMulti, yPredMulti);
+console.log(mseMulti); // 0.708
+
+// Raw values per output
+const mseRaw = meanSquaredError(yTrueMulti, yPredMulti, {
+  multioutput: 'raw_values'
+});
+console.log(mseRaw); // [0.416, 1.0]
+```
+
+## meanAbsoluteError
+
+Mean Absolute Error (MAE) - average of absolute differences between predictions and actual values.
+
+```typescript
+function meanAbsoluteError(
+  yTrue: number[] | number[][],
+  yPred: number[] | number[][],
+  options?: RegressionMetricOptions
+): number | number[];
+```
+
+<ParamField path="yTrue" type="number[] | number[][]" required>
+  True target values
+</ParamField>
+
+<ParamField path="yPred" type="number[] | number[][]" required>
+  Predicted target values
+</ParamField>
+
+<ParamField path="options.sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+<ParamField path="options.multioutput" type="'uniform_average' | 'raw_values' | 'variance_weighted'">
+  Aggregation strategy for multi-output
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const mae = meanAbsoluteError(yTrue, yPred);
+console.log(mae); // 0.5
+```
+
+## r2Score
+
+R² (coefficient of determination) - proportion of variance in the dependent variable that is predictable.
+
+```typescript
+function r2Score(
+  yTrue: number[] | number[][],
+  yPred: number[] | number[][],
+  options?: RegressionMetricOptions
+): number | number[];
+```
+
+<ParamField path="yTrue" type="number[] | number[][]" required>
+  True target values
+</ParamField>
+
+<ParamField path="yPred" type="number[] | number[][]" required>
+  Predicted target values
+</ParamField>
+
+<ParamField path="options.sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+<ParamField path="options.multioutput" type="'uniform_average' | 'raw_values' | 'variance_weighted'">
+  Aggregation strategy for multi-output
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const r2 = r2Score(yTrue, yPred);
+console.log(r2); // 0.948
+```
+
+## meanAbsolutePercentageError
+
+Mean Absolute Percentage Error (MAPE) - average of absolute percentage errors.
+
+```typescript
+function meanAbsolutePercentageError(
+  yTrue: number[] | number[][],
+  yPred: number[] | number[][],
+  options?: RegressionMetricOptions
+): number | number[];
+```
+
+<ParamField path="yTrue" type="number[] | number[][]" required>
+  True target values
+</ParamField>
+
+<ParamField path="yPred" type="number[] | number[][]" required>
+  Predicted target values
+</ParamField>
+
+<ParamField path="options.sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+<ParamField path="options.multioutput" type="'uniform_average' | 'raw_values' | 'variance_weighted'">
+  Aggregation strategy for multi-output
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const mape = meanAbsolutePercentageError(yTrue, yPred);
+console.log(mape);
+```
+
+## explainedVarianceScore
+
+Explained variance score - measures the proportion to which a model accounts for the variation of a dataset.
+
+```typescript
+function explainedVarianceScore(
+  yTrue: number[] | number[][],
+  yPred: number[] | number[][],
+  options?: RegressionMetricOptions
+): number | number[];
+```
+
+<ParamField path="yTrue" type="number[] | number[][]" required>
+  True target values
+</ParamField>
+
+<ParamField path="yPred" type="number[] | number[][]" required>
+  Predicted target values
+</ParamField>
+
+<ParamField path="options.sampleWeight" type="number[]">
+  Sample weights
+</ParamField>
+
+<ParamField path="options.multioutput" type="'uniform_average' | 'raw_values' | 'variance_weighted'">
+  Aggregation strategy for multi-output
+</ParamField>
+
+### Example
+
+```typescript
+const yTrue = [3, -0.5, 2, 7];
+const yPred = [2.5, 0.0, 2, 8];
+
+const evs = explainedVarianceScore(yTrue, yPred);
+console.log(evs); // 0.957
+```

@@ -1,0 +1,405 @@
+---
+title: Model Training
+description: Understand the fit/predict pattern and how to train machine learning models in bun-scikit
+---
+
+All models in bun-scikit follow a consistent API pattern inspired by scikit-learn. This page explains the core concepts of model training and inference.
+
+## The Fit/Predict Pattern
+
+Every model in bun-scikit implements a standard interface:
+
+<Steps>
+  <Step title="Create the model">
+    Instantiate the model with hyperparameters:
+    
+    ```typescript
+    const model = new LinearRegression({ fitIntercept: true });
+    ```
+  </Step>
+  <Step title="Fit the model">
+    Train the model on your data:
+    
+    ```typescript
+    model.fit(XTrain, yTrain);
+    ```
+  </Step>
+  <Step title="Make predictions">
+    Use the trained model for inference:
+    
+    ```typescript
+    const predictions = model.predict(XTest);
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Models store learned parameters with a trailing underscore (e.g., `coef_`, `intercept_`) to distinguish them from hyperparameters set during initialization.
+</Note>
+
+## Model Types
+
+### Regression Models
+
+Regression models predict continuous values.
+
+<CodeGroup>
+```typescript Linear Regression
+import { LinearRegression } from "bun-scikit";
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [2, 4, 6, 8, 10];
+
+const model = new LinearRegression({ solver: "normal" });
+model.fit(X, y);
+
+const predictions = model.predict([[6], [7]]);
+console.log(predictions);  // [12, 14]
+
+// Access learned parameters
+console.log("Coefficients:", model.coef_);      // [2]
+console.log("Intercept:", model.intercept_);    // 0
+console.log("Backend:", model.fitBackend_);     // "zig"
+```
+
+```typescript With Score
+import { LinearRegression, meanSquaredError, r2Score } from "bun-scikit";
+
+const model = new LinearRegression();
+model.fit(XTrain, yTrain);
+
+// Built-in score method (R² score)
+const r2 = model.score(XTest, yTest);
+
+// Or use explicit metrics
+const predictions = model.predict(XTest);
+const mse = meanSquaredError(yTest, predictions);
+const r2Manual = r2Score(yTest, predictions);
+```
+</CodeGroup>
+
+### Classification Models
+
+Classification models predict discrete labels.
+
+<CodeGroup>
+```typescript Binary Classification
+import { LogisticRegression } from "bun-scikit";
+
+const X = [
+  [0, 0],
+  [0, 1],
+  [1, 0],
+  [1, 1],
+];
+const y = [0, 0, 0, 1];  // Binary labels
+
+const model = new LogisticRegression({
+  solver: "gd",
+  learningRate: 0.1,
+  maxIter: 1000,
+});
+model.fit(X, y);
+
+const predictions = model.predict(X);
+console.log(predictions);  // [0, 0, 0, 1]
+
+// Get class probabilities
+const probabilities = model.predictProba(X);
+console.log(probabilities);
+// [[0.95, 0.05], [0.90, 0.10], [0.88, 0.12], [0.10, 0.90]]
+```
+
+```typescript Multiclass Classification
+import { LogisticRegression } from "bun-scikit";
+
+const X = [
+  [0, 0], [1, 1], [2, 2],
+  [0, 1], [1, 2], [2, 3],
+  [0, 2], [1, 3], [2, 4],
+];
+const y = [0, 0, 0, 1, 1, 1, 2, 2, 2];
+
+const model = new LogisticRegression({ maxIter: 5000 });
+model.fit(X, y);
+
+console.log("Classes:", model.classes_);  // [0, 1, 2]
+
+const predictions = model.predict([[0, 0], [1, 2], [2, 4]]);
+console.log(predictions);  // [0, 1, 2]
+```
+</CodeGroup>
+
+## Model Methods
+
+### Core Methods
+
+All models implement these essential methods:
+
+<Tabs>
+  <Tab title="fit()">
+    Train the model on labeled data.
+    
+    ```typescript
+    model.fit(X, y);
+    ```
+    
+    **Parameters:**
+    - `X: Matrix` - Training features (2D array)
+    - `y: Vector` - Training labels (1D array)
+    - `sampleWeight?: Vector` - Optional sample weights
+    
+    **Returns:** `this` (for method chaining)
+  </Tab>
+  <Tab title="predict()">
+    Make predictions on new data.
+    
+    ```typescript
+    const predictions = model.predict(X);
+    ```
+    
+    **Parameters:**
+    - `X: Matrix` - Features to predict on
+    
+    **Returns:** `Vector` - Predicted values or labels
+    
+    **Note:** Must call `fit()` first, or an error will be thrown.
+  </Tab>
+  <Tab title="score()">
+    Evaluate model performance.
+    
+    ```typescript
+    const score = model.score(XTest, yTest);
+    ```
+    
+    **Returns:**
+    - Regression: R² score (1.0 = perfect, 0.0 = baseline)
+    - Classification: Accuracy score (0.0 to 1.0)
+  </Tab>
+</Tabs>
+
+### Classification-Specific Methods
+
+<Tabs>
+  <Tab title="predictProba()">
+    Get class probability estimates.
+    
+    ```typescript
+    const probabilities = model.predictProba(X);
+    // [[0.1, 0.9], [0.8, 0.2], ...]
+    ```
+    
+    Returns a matrix where each row contains probabilities for all classes.
+  </Tab>
+  <Tab title="decisionFunction()">
+    Get confidence scores (distance from decision boundary).
+    
+    ```typescript
+    const scores = model.decisionFunction(X);
+    ```
+    
+    Higher absolute values indicate higher confidence.
+  </Tab>
+</Tabs>
+
+## Training with Sample Weights
+
+Give different importance to different samples during training.
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+const X = [[1], [2], [3], [4]];
+const y = [2, 4, 6, 8];
+
+// Give more weight to the first and last samples
+const sampleWeight = [2.0, 1.0, 1.0, 2.0];
+
+const model = new LinearRegression();
+model.fit(X, y, sampleWeight);
+```
+
+## Model State and Parameters
+
+### Hyperparameters vs Learned Parameters
+
+<Note>
+  **Convention:** Parameters with trailing underscores are learned during fitting, while parameters without underscores are hyperparameters set during initialization.
+</Note>
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+// Hyperparameters (set before training)
+const model = new LogisticRegression({
+  learningRate: 0.1,      // Hyperparameter
+  maxIter: 1000,          // Hyperparameter
+  tolerance: 1e-5,        // Hyperparameter
+});
+
+model.fit(X, y);
+
+// Learned parameters (computed during training)
+console.log(model.coef_);              // Learned coefficients
+console.log(model.intercept_);         // Learned intercept
+console.log(model.classes_);           // Discovered classes
+console.log(model.fitBackend_);        // "zig" (acceleration used)
+```
+
+## Native Acceleration
+
+bun-scikit uses Zig-accelerated native code for performance-critical operations.
+
+<CodeGroup>
+```typescript Check Backend
+import { LinearRegression } from "bun-scikit";
+
+const model = new LinearRegression();
+model.fit(X, y);
+
+console.log("Backend:", model.fitBackend_);          // "zig"
+console.log("Library:", model.fitBackendLibrary_);   // Path to .so/.dll
+```
+
+```typescript Environment Variables
+// Force JavaScript fallback (for debugging)
+BUN_SCIKIT_TREE_BACKEND=js bun run script.ts
+
+// Use specific native library path
+BUN_SCIKIT_ZIG_LIB=/path/to/bun_scikit_kernels.so bun run script.ts
+```
+</CodeGroup>
+
+<Note>
+  Most models automatically use Zig acceleration when available. The performance difference can be significant (2-6x speedup for linear models, up to 6x for random forests).
+</Note>
+
+## Error Handling
+
+### Common Errors
+
+<Accordion title="Model not fitted">
+```typescript
+const model = new LinearRegression();
+try {
+  model.predict(X);  // Error!
+} catch (error) {
+  console.error(error.message);
+  // "LinearRegression has not been fitted."
+}
+```
+
+Always call `fit()` before `predict()`.
+</Accordion>
+
+<Accordion title="Feature size mismatch">
+```typescript
+const model = new LinearRegression();
+model.fit([[1, 2], [3, 4]], [5, 6]);
+
+try {
+  model.predict([[1, 2, 3]]);  // Error!
+} catch (error) {
+  console.error(error.message);
+  // "Feature size mismatch. Expected 2, got 3."
+}
+```
+
+Ensure test data has the same number of features as training data.
+</Accordion>
+
+<Accordion title="Invalid input shape">
+```typescript
+try {
+  model.fit([], []);  // Error!
+} catch (error) {
+  console.error(error.message);
+  // "X must be a non-empty matrix."
+}
+```
+
+Validation errors help catch issues early.
+</Accordion>
+
+## Complete Example
+
+Here's a complete workflow from data preparation to model evaluation:
+
+```typescript
+import {
+  LinearRegression,
+  StandardScaler,
+  trainTestSplit,
+  meanSquaredError,
+  r2Score,
+} from "bun-scikit";
+
+// Prepare data
+const X = [
+  [1, 2], [2, 4], [3, 6],
+  [4, 8], [5, 10], [6, 12],
+];
+const y = [3, 7, 11, 15, 19, 23];
+
+// Split into train/test sets
+const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y, {
+  testSize: 0.33,
+  randomState: 42,
+});
+
+// Preprocess features
+const scaler = new StandardScaler();
+const XTrainScaled = scaler.fitTransform(XTrain);
+const XTestScaled = scaler.transform(XTest);
+
+// Train model
+const model = new LinearRegression({ fitIntercept: true });
+model.fit(XTrainScaled, yTrain);
+
+// Evaluate
+const predictions = model.predict(XTestScaled);
+const mse = meanSquaredError(yTest, predictions);
+const r2 = r2Score(yTest, predictions);
+
+console.log("MSE:", mse);
+console.log("R²:", r2);
+console.log("Coefficients:", model.coef_);
+console.log("Intercept:", model.intercept_);
+```
+
+## Available Models
+
+### Linear Models
+- `LinearRegression` - Ordinary least squares
+- `LogisticRegression` - Classification with logistic function
+- `SGDClassifier` - Stochastic gradient descent classifier
+- `SGDRegressor` - Stochastic gradient descent regressor
+- `LinearSVC` - Linear Support Vector Classification
+
+### Tree-Based Models
+- `DecisionTreeClassifier` - Decision tree for classification
+- `DecisionTreeRegressor` - Decision tree for regression
+- `RandomForestClassifier` - Ensemble of decision trees (classification)
+- `RandomForestRegressor` - Ensemble of decision trees (regression)
+
+### Neighbors
+- `KNeighborsClassifier` - k-nearest neighbors classification
+- `KNeighborsRegressor` - k-nearest neighbors regression
+
+### Naive Bayes
+- `GaussianNB` - Gaussian Naive Bayes
+
+### Ensemble Methods
+- `AdaBoostClassifier` - Adaptive boosting
+- `GradientBoostingClassifier` - Gradient boosting
+- `GradientBoostingRegressor` - Gradient boosting for regression
+- `VotingClassifier` - Soft/hard voting classifier
+- `StackingClassifier` - Stacked generalization
+
+See the API Reference for complete model documentation.
+
+## Next Steps
+
+- [Model Evaluation](/concepts/model-evaluation) - Evaluate model performance
+- [Pipelines](/concepts/pipelines) - Build end-to-end workflows
+- [Data Preprocessing](/concepts/preprocessing) - Prepare your data

@@ -1,0 +1,130 @@
+---
+title: VarianceThreshold
+description: Remove low-variance features
+---
+
+## Overview
+
+VarianceThreshold removes features whose variance doesn't meet a threshold. Features with low variance are often not useful for machine learning models.
+
+## Constructor
+
+```typescript
+new VarianceThreshold(options?)
+```
+
+### Parameters
+
+<ParamField path="options.threshold" type="number" default="0">
+  Variance threshold. Features with variance below this value are removed.
+</ParamField>
+
+## Methods
+
+### fit()
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute variances for each feature.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+### transform()
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Remove low-variance features.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform.
+</ParamField>
+
+### fitTransform()
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit and transform in one step.
+
+## Properties
+
+<ParamField path="variances_" type="number[] | null">
+  Variance of each feature in the training set.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit.
+</ParamField>
+
+<ParamField path="selectedFeatureIndices_" type="number[] | null">
+  Indices of features that passed the variance threshold.
+</ParamField>
+
+## Examples
+
+### Remove zero-variance features
+
+```typescript
+import { VarianceThreshold } from "bun-scikit";
+
+const X = [
+  [0, 2, 0, 3],
+  [0, 1, 4, 3],
+  [0, 1, 1, 3]
+];
+
+const selector = new VarianceThreshold({ threshold: 0 });
+const XNew = selector.fitTransform(X);
+// Removes first and last columns (variance = 0)
+console.log(XNew);
+// [[2, 0], [1, 4], [1, 1]]
+```
+
+### Remove low-variance features
+
+```typescript
+import { VarianceThreshold } from "bun-scikit";
+
+const X = [
+  [0, 0, 1],
+  [0, 1, 0],
+  [1, 0, 0],
+  [0, 1, 1],
+  [0, 1, 0],
+  [0, 1, 1]
+];
+
+const selector = new VarianceThreshold({ threshold: 0.2 });
+const XNew = selector.fitTransform(X);
+console.log("Selected features:", selector.selectedFeatureIndices_);
+console.log("Variances:", selector.variances_);
+```
+
+### Use in pipeline
+
+```typescript
+import { Pipeline, VarianceThreshold, StandardScaler, LogisticRegression } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["variance", new VarianceThreshold({ threshold: 0.1 })],
+  ["scaler", new StandardScaler()],
+  ["classifier", new LogisticRegression()]
+]);
+
+pipeline.fit(XTrain, yTrain);
+const predictions = pipeline.predict(XTest);
+```
+
+## Notes
+
+- This is an unsupervised feature selection method
+- Does not consider the relationship between features and target
+- Useful as a preprocessing step to remove constant or near-constant features
+- Throws an error if all features are below the threshold

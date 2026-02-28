@@ -1,0 +1,185 @@
+---
+title: 'Support'
+description: 'Get help and connect with the bun-scikit community'
+icon: 'life-ring'
+---
+
+<Info>
+  Need help with bun-scikit? We're here to support you! Choose the option below that best fits your needs.
+</Info>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Questions" icon="circle-question" href="https://github.com/Seyamalam/bun-scikit/discussions">
+    For usage questions, open a GitHub Discussion or an issue with the `question` label.
+  </Card>
+  
+  <Card title="Documentation" icon="book" href="/introduction">
+    Check our comprehensive documentation for guides, API references, and examples.
+  </Card>
+  
+  <Card title="Bug Reports" icon="bug" href="https://github.com/Seyamalam/bun-scikit/issues/new">
+    Found a bug? Report it using our bug report issue template.
+  </Card>
+  
+  <Card title="Feature Requests" icon="lightbulb" href="https://github.com/Seyamalam/bun-scikit/issues/new">
+    Have an idea? Share it with us through GitHub Issues.
+  </Card>
+</CardGroup>
+
+## Reporting Bugs
+
+<Steps>
+  <Step title="Search Existing Issues">
+    Before creating a new issue, search [existing issues](https://github.com/Seyamalam/bun-scikit/issues) to see if your bug has already been reported.
+  </Step>
+  
+  <Step title="Use the Bug Report Template">
+    Use the bug report issue template to ensure you provide all necessary information.
+  </Step>
+  
+  <Step title="Include Required Information">
+    Make sure to include:
+    <Accordion title="Required Bug Report Information" icon="list-check">
+      - **Minimal reproduction code**: A complete, minimal example that demonstrates the issue
+      - **Input data shape/sample**: Description or sample of the data being used
+      - **Bun version**: Output of `bun --version`
+      - **bun-scikit version**: Version number from `package.json` or `bun pm ls`
+      - **Expected behavior**: What you expected to happen
+      - **Actual behavior**: What actually happened
+      - **Error messages**: Full error messages and stack traces if applicable
+    </Accordion>
+  </Step>
+</Steps>
+
+### Example Bug Report
+
+<CodeGroup>
+```typescript Minimal Reproduction
+import { LinearRegression } from 'bun-scikit';
+
+const X = [[1], [2], [3]];
+const y = [2, 4, 6];
+
+const model = new LinearRegression({ solver: 'normal' });
+model.fit(X, y);
+
+// Expected: predictions close to [8, 10]
+// Actual: throws error
+console.log(model.predict([[4], [5]]));
+```
+
+```bash Environment
+Bun version: 1.3.9
+bun-scikit version: 0.1.6
+OS: Ubuntu 22.04
+Node.js: 20.11.0 (for comparison)
+```
+</CodeGroup>
+
+## Security Issues
+
+<Warning>
+  **Do not report security vulnerabilities through public GitHub issues.**
+</Warning>
+
+For security vulnerabilities:
+
+<Steps>
+  <Step title="Use Private Reporting">
+    Follow the guidelines in `SECURITY.md` and use [GitHub's private vulnerability reporting](https://github.com/Seyamalam/bun-scikit/security/advisories/new).
+  </Step>
+  
+  <Step title="Include Details">
+    Provide:
+    - Description of the vulnerability
+    - Steps to reproduce
+    - Potential impact
+    - Suggested fix (if available)
+  </Step>
+  
+  <Step title="Allow Response Time">
+    We will respond to security reports within 48 hours and work with you to address the issue.
+  </Step>
+</Steps>
+
+## Community
+
+<CardGroup cols={3}>
+  <Card title="GitHub" icon="github" href="https://github.com/Seyamalam/bun-scikit">
+    Star the repo, watch releases, and contribute code
+  </Card>
+  
+  <Card title="Discussions" icon="comments" href="https://github.com/Seyamalam/bun-scikit/discussions">
+    Ask questions and share ideas
+  </Card>
+  
+  <Card title="Issues" icon="circle-exclamation" href="https://github.com/Seyamalam/bun-scikit/issues">
+    Report bugs and request features
+  </Card>
+</CardGroup>
+
+## Contributing
+
+<Tip>
+  Want to contribute to bun-scikit? Check out our [Contributing Guide](/resources/contributing) to get started!
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="Contributing Guide" icon="code-pull-request" href="/resources/contributing">
+    Learn how to contribute to the project
+  </Card>
+  
+  <Card title="Code of Conduct" icon="handshake" href="https://github.com/Seyamalam/bun-scikit/blob/main/CODE_OF_CONDUCT.md">
+    Read our community guidelines
+  </Card>
+</CardGroup>
+
+## Useful Links
+
+<AccordionGroup>
+  <Accordion title="Documentation" icon="book">
+    - [Getting Started](/quickstart)
+    - [Linear Regression API](/api/linear-models/linear-regression)
+    - [Performance](/performance/benchmarks)
+  </Accordion>
+
+  <Accordion title="Project Resources" icon="folder">
+    - [GitHub Repository](https://github.com/Seyamalam/bun-scikit)
+    - [Changelog](/resources/changelog)
+    - [Parity Matrix](/resources/sklearn-parity)
+    - [npm Package](https://www.npmjs.com/package/bun-scikit)
+  </Accordion>
+
+  <Accordion title="External Resources" icon="link">
+    - [Bun Documentation](https://bun.sh/docs)
+    - [Scikit-learn Documentation](https://scikit-learn.org/)
+    - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+  </Accordion>
+</AccordionGroup>
+
+## Response Times
+
+<Note>
+  This is an open-source project maintained by volunteers. While we strive to respond quickly, please be patient:
+  
+  - **Security issues**: Within 48 hours
+  - **Bug reports**: Within 1 week
+  - **Feature requests**: Within 2 weeks
+  - **Questions**: Within 1 week
+  
+  Community members often respond faster!
+</Note>
+
+## Stay Updated
+
+<CardGroup cols={2}>
+  <Card title="Watch Releases" icon="bell" href="https://github.com/Seyamalam/bun-scikit/releases">
+    Get notified about new releases on GitHub
+  </Card>
+  
+  <Card title="Follow Changelog" icon="clock-rotate-left" href="/resources/changelog">
+    Stay up to date with the latest changes
+  </Card>
+</CardGroup>

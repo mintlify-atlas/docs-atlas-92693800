@@ -1,0 +1,292 @@
+---
+title: "Decision Tree"
+description: "DecisionTreeClassifier and DecisionTreeRegressor API reference"
+---
+
+## DecisionTreeClassifier
+
+A decision tree classifier using CART algorithm with Gini impurity.
+
+### Constructor
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const clf = new DecisionTreeClassifier({
+  maxDepth: 12,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  maxFeatures: "sqrt",
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="maxDepth" type="number" default="12">
+  Maximum depth of the tree. Deeper trees can model more complex patterns but may overfit.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node.
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node.
+</ParamField>
+
+<ParamField path="maxFeatures" type="'sqrt' | 'log2' | number | null" default="null">
+  Number of features to consider when looking for the best split:
+  - `"sqrt"`: sqrt(n_features)
+  - `"log2"`: log2(n_features)
+  - `number`: specific number of features
+  - `null`: use all features
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible feature selection when maxFeatures < n_features.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the decision tree classifier.
+
+```typescript
+clf.fit(X: Matrix, y: Vector): DecisionTreeClassifier
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (class labels).
+</ParamField>
+
+#### predict()
+
+Predict class labels for samples.
+
+```typescript
+clf.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted class labels.
+
+#### score()
+
+Return the accuracy on the given test data.
+
+```typescript
+clf.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** Accuracy score between 0 and 1.
+
+#### dispose()
+
+Free native resources if using Zig backend.
+
+```typescript
+clf.dispose(): void
+```
+
+### Properties
+
+<ParamField path="classes_" type="Vector" readonly>
+  Unique class labels found during training.
+</ParamField>
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Feature importances (Gini importance). Higher values indicate more important features.
+</ParamField>
+
+<ParamField path="fitBackend_" type="'zig' | 'js'" readonly>
+  Backend used for training: `"zig"` (native) or `"js"` (JavaScript).
+</ParamField>
+
+<ParamField path="fitBackendLibrary_" type="string | null" readonly>
+  Path to native library if Zig backend was used.
+</ParamField>
+
+### Zig Backend
+
+DecisionTreeClassifier can use a Zig-powered native backend for faster training. The backend is automatically selected when:
+
+- Number of classes is between 2 and 256
+- `BUN_SCIKIT_TREE_BACKEND` is not set to `"js"` or `"off"`
+
+Control backend selection:
+
+```bash
+export BUN_SCIKIT_TREE_BACKEND="zig"   # Force native (default)
+export BUN_SCIKIT_TREE_BACKEND="js"    # Force JavaScript
+export BUN_SCIKIT_TREE_BACKEND="auto"  # Auto-select
+```
+
+### Example
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+// Create classifier with max depth 5
+const clf = new DecisionTreeClassifier({ 
+  maxDepth: 5,
+  randomState: 42 
+});
+
+// Training data
+const X = [
+  [2.5, 1.2],
+  [3.1, 1.5],
+  [1.2, 0.8],
+  [0.9, 0.5]
+];
+const y = [0, 0, 1, 1];
+
+// Train
+clf.fit(X, y);
+
+// Predict
+const predictions = clf.predict([[2.0, 1.0], [1.0, 0.6]]);
+console.log(predictions); // [0, 1]
+
+// Feature importances
+console.log(clf.featureImportances_);
+// [0.66, 0.34] - first feature is more important
+
+// Clean up
+clf.dispose();
+```
+
+---
+
+## DecisionTreeRegressor
+
+A decision tree regressor using CART algorithm with variance reduction.
+
+### Constructor
+
+```typescript
+import { DecisionTreeRegressor } from "bun-scikit";
+
+const reg = new DecisionTreeRegressor({
+  maxDepth: 12,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  maxFeatures: null,
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="maxDepth" type="number" default="12">
+  Maximum depth of the tree.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node.
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node.
+</ParamField>
+
+<ParamField path="maxFeatures" type="'sqrt' | 'log2' | number | null" default="null">
+  Number of features to consider when looking for the best split.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible feature selection.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the decision tree regressor.
+
+```typescript
+reg.fit(X: Matrix, y: Vector): DecisionTreeRegressor
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (continuous).
+</ParamField>
+
+#### predict()
+
+Predict target values for samples.
+
+```typescript
+reg.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted continuous values.
+
+#### score()
+
+Return the R² score on the given test data.
+
+```typescript
+reg.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** R² score (coefficient of determination). Best possible score is 1.0.
+
+### Properties
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Feature importances based on variance reduction.
+</ParamField>
+
+### Example
+
+```typescript
+import { DecisionTreeRegressor } from "bun-scikit";
+
+// Create regressor
+const reg = new DecisionTreeRegressor({ 
+  maxDepth: 3,
+  minSamplesLeaf: 2
+});
+
+// Training data
+const X = [
+  [1.0],
+  [2.0],
+  [3.0],
+  [4.0],
+  [5.0]
+];
+const y = [1.5, 2.1, 2.9, 4.2, 5.1];
+
+// Train
+reg.fit(X, y);
+
+// Predict
+const predictions = reg.predict([[2.5], [3.5]]);
+console.log(predictions); // [2.5, 3.55]
+
+// R² score
+const r2 = reg.score(X, y);
+console.log(r2); // 0.98
+
+// Feature importances
+console.log(reg.featureImportances_);
+```

@@ -1,0 +1,181 @@
+---
+title: Lasso
+description: Lasso regression with L1 regularization
+---
+
+## Overview
+
+`Lasso` implements linear regression with L1 regularization. The L1 penalty can shrink some coefficients to exactly zero, performing automatic feature selection. Lasso uses coordinate descent optimization.
+
+## Constructor
+
+```typescript
+import { Lasso } from "bun-scikit";
+
+const model = new Lasso(options);
+```
+
+### Parameters
+
+<ParamField path="options" type="LassoOptions" default="{}">
+  Configuration options for the model
+  
+  <Expandable title="properties">
+    <ParamField path="alpha" type="number" default="1">
+      Regularization strength. Higher values specify stronger regularization:
+      - `alpha = 0`: Equivalent to ordinary least squares (not recommended)
+      - `alpha > 0`: Adds L1 penalty (sum of absolute values of coefficients)
+    </ParamField>
+    
+    <ParamField path="fitIntercept" type="boolean" default="true">
+      Whether to calculate the intercept for this model
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="1000">
+      Maximum number of coordinate descent iterations
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-4">
+      Tolerance for optimization convergence
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the lasso regression model using training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+**Parameters:**
+- `X`: Training data matrix of shape `[nSamples, nFeatures]`
+- `y`: Target values vector of length `nSamples`
+- `sampleWeight`: Optional sample weights (not currently used)
+
+**Returns:** The fitted model instance
+
+**Example:**
+```typescript
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1, 2, 3, 4, 5];
+
+const lasso = new Lasso({ alpha: 0.01, maxIter: 2000, tolerance: 1e-8 });
+lasso.fit(X, y);
+```
+
+### predict
+
+Predict using the lasso regression model.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+**Parameters:**
+- `X`: Samples matrix of shape `[nSamples, nFeatures]`
+
+**Returns:** Predicted values vector of length `nSamples`
+
+**Example:**
+```typescript
+const predictions = lasso.predict([[2.5]]);
+console.log(predictions[0]); // Predicted value
+```
+
+### score
+
+Return the coefficient of determination (R² score) of the prediction.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+**Parameters:**
+- `X`: Test samples matrix
+- `y`: True target values
+
+**Returns:** R² score (coefficient of determination)
+
+## Attributes
+
+After fitting, the following attributes are available:
+
+<ParamField path="coef_" type="Vector">
+  Estimated coefficients for the lasso regression problem. Some coefficients may be exactly zero.
+</ParamField>
+
+<ParamField path="intercept_" type="number">
+  Independent term in the linear model
+</ParamField>
+
+<ParamField path="nIter_" type="number">
+  Number of iterations run by the coordinate descent solver
+</ParamField>
+
+## Complete Example
+
+```typescript
+import { Lasso } from "bun-scikit";
+
+// Training data
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 1, 2, 3, 4, 5];
+
+// Create and fit the model
+const lasso = new Lasso({ alpha: 0.01, maxIter: 2000, tolerance: 1e-8 });
+lasso.fit(X, y);
+
+// Evaluate the model
+const r2 = lasso.score(X, y);
+console.log("R² score:", r2); // >0.98
+
+// Check convergence
+console.log("Iterations:", lasso.nIter_);
+
+// Inspect coefficients
+console.log("Coefficients:", lasso.coef_);
+console.log("Non-zero coefficients:", lasso.coef_.filter(c => c !== 0).length);
+```
+
+## Feature Selection Example
+
+```typescript
+import { Lasso } from "bun-scikit";
+
+// Data with 5 features, but only 2 are relevant
+const X = [
+  [1, 2, 0.1, -0.2, 0.05],
+  [2, 4, -0.15, 0.1, -0.03],
+  [3, 6, 0.2, 0.15, 0.08],
+  [4, 8, -0.1, -0.05, 0.02],
+  [5, 10, 0.05, 0.2, -0.06],
+];
+const y = [3, 6, 9, 12, 15]; // y ≈ x₀ + 2×x₁
+
+// Lasso with strong regularization
+const lasso = new Lasso({ alpha: 0.1, maxIter: 2000, tolerance: 1e-8 });
+lasso.fit(X, y);
+
+console.log("Coefficients:", lasso.coef_);
+// Features 0 and 1 should have large coefficients
+// Features 2, 3, 4 should be close to or exactly zero
+
+const selectedFeatures = lasso.coef_
+  .map((coef, idx) => ({ idx, coef: Math.abs(coef) }))
+  .filter(f => f.coef > 0.01)
+  .map(f => f.idx);
+
+console.log("Selected features:", selectedFeatures); // [0, 1]
+```
+
+## Notes
+
+- Lasso can set coefficients exactly to zero, making it useful for feature selection.
+- The coordinate descent algorithm is efficient for high-dimensional sparse problems.
+- If the solution doesn't converge, try increasing `maxIter` or adjusting `alpha`.
+- For a mix of L1 and L2 regularization, see [ElasticNet](/api/linear-models/elastic-net).
+- For automatic selection of the best `alpha` value, see `LassoCV`.

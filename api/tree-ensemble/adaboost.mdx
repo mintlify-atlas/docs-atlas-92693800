@@ -1,0 +1,402 @@
+---
+title: "AdaBoost"
+description: "AdaBoostClassifier and AdaBoostRegressor API reference"
+---
+
+## AdaBoostClassifier
+
+Adaptive Boosting classifier for binary classification. Fits a sequence of weak learners on weighted samples, focusing on difficult cases.
+
+### Constructor
+
+```typescript
+import { AdaBoostClassifier } from "bun-scikit";
+
+const clf = new AdaBoostClassifier(
+  null, // estimator factory (null = use default)
+  {
+    nEstimators: 50,
+    learningRate: 1.0,
+    randomState: 42
+  }
+);
+```
+
+### Parameters
+
+**Constructor signature:**
+```typescript
+new AdaBoostClassifier(
+  estimatorFactory?: (() => ClassifierLike) | null,
+  options?: AdaBoostClassifierOptions
+)
+```
+
+<ParamField path="estimatorFactory" type="(() => ClassifierLike) | null" default="null">
+  Factory function that creates a weak learner. If `null`, uses DecisionTreeClassifier with max depth 1 (decision stump).
+  
+  The weak learner must implement:
+  - `fit(X: Matrix, y: Vector): any`
+  - `predict(X: Matrix): Vector`
+  - `featureImportances_?: Vector | null` (optional)
+</ParamField>
+
+<ParamField path="nEstimators" type="number" default="50">
+  Maximum number of estimators to train. Training may stop early if perfect fit is achieved.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="1.0">
+  Learning rate shrinks the contribution of each classifier. Lower values require more estimators but can improve generalization.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible weighted sampling.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the AdaBoost classifier.
+
+```typescript
+clf.fit(X: Matrix, y: Vector): AdaBoostClassifier
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Binary target values (0 or 1).
+</ParamField>
+
+<Note>
+AdaBoostClassifier only supports binary classification.
+</Note>
+
+#### predict()
+
+Predict class labels for samples.
+
+```typescript
+clf.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted binary class labels (0 or 1).
+
+#### predictProba()
+
+Predict class probabilities for samples.
+
+```typescript
+clf.predictProba(X: Matrix): Matrix
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict.
+</ParamField>
+
+**Returns:** Matrix of shape [n_samples, 2] with probabilities [P(class=0), P(class=1)].
+
+#### decisionFunction()
+
+Compute the weighted sum of predictions from all estimators.
+
+```typescript
+clf.decisionFunction(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to score.
+</ParamField>
+
+**Returns:** Decision function values. Positive values predict class 1, negative values predict class 0.
+
+#### score()
+
+Return the accuracy on the given test data.
+
+```typescript
+clf.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** Accuracy score between 0 and 1.
+
+### Properties
+
+<ParamField path="classes_" type="Vector" readonly>
+  Class labels [0, 1].
+</ParamField>
+
+<ParamField path="estimators_" type="ClassifierLike[]" readonly>
+  Collection of fitted weak learners.
+</ParamField>
+
+<ParamField path="estimatorWeights_" type="Vector" readonly>
+  Weights for each estimator in the ensemble. Higher weights indicate more accurate estimators.
+</ParamField>
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Aggregated feature importances, weighted by estimator accuracy.
+</ParamField>
+
+### Example: Default Estimator
+
+```typescript
+import { AdaBoostClassifier } from "bun-scikit";
+
+// Use default estimator (decision stumps)
+const clf = new AdaBoostClassifier(null, { 
+  nEstimators: 50,
+  learningRate: 1.0,
+  randomState: 42 
+});
+
+// Binary classification: fraud detection
+const X = [
+  [100, 1, 0],   // amount, international, verified
+  [50, 0, 1],
+  [5000, 1, 0],
+  [30, 0, 1],
+  [10000, 1, 0],
+  [200, 0, 1]
+];
+const y = [0, 0, 1, 0, 1, 0]; // 0=legit, 1=fraud
+
+// Train
+clf.fit(X, y);
+
+// Predict
+const testX = [
+  [150, 1, 0],
+  [40, 0, 1]
+];
+const predictions = clf.predict(testX);
+console.log(predictions); // [1, 0]
+
+// Get probabilities
+const proba = clf.predictProba(testX);
+console.log(proba);
+// [[0.35, 0.65], [0.82, 0.18]]
+
+// Estimator weights
+console.log("Estimator weights:");
+clf.estimatorWeights_.forEach((w, i) => {
+  console.log(`  Tree ${i}: ${w.toFixed(4)}`);
+});
+```
+
+### Example: Custom Estimator
+
+```typescript
+import { AdaBoostClassifier } from "bun-scikit";
+import { DecisionTreeClassifier } from "bun-scikit";
+
+// Use deeper trees as weak learners
+const clf = new AdaBoostClassifier(
+  () => new DecisionTreeClassifier({ maxDepth: 3 }),
+  { 
+    nEstimators: 30,
+    learningRate: 0.8,
+    randomState: 42 
+  }
+);
+
+clf.fit(X, y);
+const predictions = clf.predict(testX);
+```
+
+---
+
+## AdaBoostRegressor
+
+Adaptive Boosting regressor for continuous target variables. Fits a sequence of weak learners, focusing on samples with high prediction error.
+
+### Constructor
+
+```typescript
+import { AdaBoostRegressor } from "bun-scikit";
+
+const reg = new AdaBoostRegressor(
+  null, // estimator factory (null = use default)
+  {
+    nEstimators: 50,
+    learningRate: 1.0,
+    randomState: 42
+  }
+);
+```
+
+### Parameters
+
+**Constructor signature:**
+```typescript
+new AdaBoostRegressor(
+  estimatorFactory?: (() => RegressorLike) | null,
+  options?: AdaBoostRegressorOptions
+)
+```
+
+<ParamField path="estimatorFactory" type="(() => RegressorLike) | null" default="null">
+  Factory function that creates a weak learner. If `null`, uses DecisionTreeRegressor with max depth 3.
+  
+  The weak learner must implement:
+  - `fit(X: Matrix, y: Vector): any`
+  - `predict(X: Matrix): Vector`
+  - `featureImportances_?: Vector | null` (optional)
+</ParamField>
+
+<ParamField path="nEstimators" type="number" default="50">
+  Maximum number of estimators to train.
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="1.0">
+  Learning rate shrinks the contribution of each regressor.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible weighted sampling.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the AdaBoost regressor.
+
+```typescript
+reg.fit(X: Matrix, y: Vector): AdaBoostRegressor
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Continuous target values.
+</ParamField>
+
+#### predict()
+
+Predict target values using weighted median of estimators.
+
+```typescript
+reg.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted continuous values (weighted average across estimators).
+
+#### score()
+
+Return the R² score on the given test data.
+
+```typescript
+reg.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** R² score (coefficient of determination).
+
+#### getParams() / setParams()
+
+Get or set hyperparameters.
+
+```typescript
+reg.getParams(): AdaBoostRegressorOptions
+reg.setParams(params: Partial<AdaBoostRegressorOptions>): AdaBoostRegressor
+```
+
+### Properties
+
+<ParamField path="estimators_" type="RegressorLike[]" readonly>
+  Collection of fitted weak learners.
+</ParamField>
+
+<ParamField path="estimatorWeights_" type="Vector" readonly>
+  Weights for each estimator based on prediction error.
+</ParamField>
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Aggregated feature importances, weighted by estimator performance.
+</ParamField>
+
+### Example
+
+```typescript
+import { AdaBoostRegressor } from "bun-scikit";
+
+// Use default estimator (depth-3 trees)
+const reg = new AdaBoostRegressor(null, { 
+  nEstimators: 50,
+  learningRate: 1.0,
+  randomState: 42 
+});
+
+// Energy consumption prediction
+const X = [
+  [20, 50, 1000],  // temp, humidity, sqft
+  [25, 45, 1200],
+  [18, 60, 900],
+  [30, 40, 1500],
+  [22, 55, 1100]
+];
+const y = [45, 52, 38, 68, 48]; // kWh
+
+// Train
+reg.fit(X, y);
+
+// Predict
+const testX = [
+  [23, 48, 1050],
+  [28, 42, 1400]
+];
+const predictions = reg.predict(testX);
+console.log("Predicted energy consumption:");
+predictions.forEach((kwh, i) => {
+  console.log(`  Sample ${i + 1}: ${kwh.toFixed(2)} kWh`);
+});
+
+// R² score
+const r2 = reg.score(X, y);
+console.log(`R² score: ${r2.toFixed(4)}`);
+
+// Feature importances
+const features = ["temperature", "humidity", "sqft"];
+console.log("\nFeature importances:");
+reg.featureImportances_?.forEach((imp, i) => {
+  console.log(`  ${features[i]}: ${imp.toFixed(4)}`);
+});
+
+// Update parameters
+reg.setParams({ learningRate: 0.8, nEstimators: 100 });
+```
+
+### Example: Custom Estimator
+
+```typescript
+import { AdaBoostRegressor } from "bun-scikit";
+import { DecisionTreeRegressor } from "bun-scikit";
+
+// Use shallow trees for faster training
+const reg = new AdaBoostRegressor(
+  () => new DecisionTreeRegressor({ 
+    maxDepth: 2,
+    minSamplesLeaf: 5 
+  }),
+  { 
+    nEstimators: 100,
+    learningRate: 0.8 
+  }
+);
+
+reg.fit(X, y);
+const predictions = reg.predict(testX);
+```

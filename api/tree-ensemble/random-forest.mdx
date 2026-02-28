@@ -1,0 +1,337 @@
+---
+title: "Random Forest"
+description: "RandomForestClassifier and RandomForestRegressor API reference"
+---
+
+## RandomForestClassifier
+
+A random forest classifier that fits multiple decision trees and combines their predictions via voting.
+
+### Constructor
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+const clf = new RandomForestClassifier({
+  nEstimators: 50,
+  maxDepth: 12,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  maxFeatures: "sqrt",
+  bootstrap: true,
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="nEstimators" type="number" default="50">
+  Number of trees in the forest. More trees generally improve performance but increase training time.
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="12">
+  Maximum depth of each tree in the forest.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node.
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node.
+</ParamField>
+
+<ParamField path="maxFeatures" type="'sqrt' | 'log2' | number | null" default="'sqrt'">
+  Number of features to consider when looking for the best split:
+  - `"sqrt"`: sqrt(n_features) - recommended for classification
+  - `"log2"`: log2(n_features)
+  - `number`: specific number of features
+  - `null`: use all features
+</ParamField>
+
+<ParamField path="bootstrap" type="boolean" default="true">
+  Whether to use bootstrap samples when building trees. If false, the whole dataset is used for each tree.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible results.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the random forest classifier.
+
+```typescript
+clf.fit(X: Matrix, y: Vector): RandomForestClassifier
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (class labels).
+</ParamField>
+
+#### predict()
+
+Predict class labels using majority voting.
+
+```typescript
+clf.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted class labels based on majority vote across all trees.
+
+#### score()
+
+Return the accuracy on the given test data.
+
+```typescript
+clf.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** Accuracy score between 0 and 1.
+
+#### dispose()
+
+Free native resources if using Zig backend.
+
+```typescript
+clf.dispose(): void
+```
+
+### Properties
+
+<ParamField path="classes_" type="Vector" readonly>
+  Unique class labels found during training.
+</ParamField>
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Aggregated feature importances across all trees. Higher values indicate more important features.
+</ParamField>
+
+<ParamField path="fitBackend_" type="'zig' | 'js'" readonly>
+  Backend used for training: `"zig"` (native) or `"js"` (JavaScript).
+</ParamField>
+
+<ParamField path="fitBackendLibrary_" type="string | null" readonly>
+  Path to native library if Zig backend was used.
+</ParamField>
+
+### Zig Backend
+
+RandomForestClassifier can leverage the Zig backend for significantly faster training:
+
+```typescript
+// Backend automatically selected when available
+const clf = new RandomForestClassifier({ nEstimators: 100 });
+clf.fit(X, y);
+
+console.log(clf.fitBackend_); // "zig" or "js"
+```
+
+Control via environment variable:
+
+```bash
+export BUN_SCIKIT_TREE_BACKEND="zig"  # Enable (default)
+export BUN_SCIKIT_TREE_BACKEND="js"   # Disable
+```
+
+### Example
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+import { trainTestSplit } from "bun-scikit";
+
+// Create forest with 100 trees
+const clf = new RandomForestClassifier({ 
+  nEstimators: 100,
+  maxDepth: 10,
+  randomState: 42 
+});
+
+// Iris dataset
+const X = [
+  [5.1, 3.5, 1.4, 0.2],
+  [4.9, 3.0, 1.4, 0.2],
+  [7.0, 3.2, 4.7, 1.4],
+  [6.4, 3.2, 4.5, 1.5],
+  [6.3, 3.3, 6.0, 2.5],
+  [5.8, 2.7, 5.1, 1.9]
+];
+const y = [0, 0, 1, 1, 2, 2];
+
+// Split data
+const { XTrain, XTest, yTrain, yTest } = trainTestSplit(X, y, {
+  testSize: 0.3,
+  randomState: 42
+});
+
+// Train
+clf.fit(XTrain, yTrain);
+
+// Predict
+const predictions = clf.predict(XTest);
+
+// Evaluate
+const accuracy = clf.score(XTest, yTest);
+console.log(`Accuracy: ${(accuracy * 100).toFixed(2)}%`);
+
+// Feature importances
+console.log("Feature importances:");
+clf.featureImportances_?.forEach((imp, i) => {
+  console.log(`  Feature ${i}: ${imp.toFixed(4)}`);
+});
+
+// Clean up
+clf.dispose();
+```
+
+---
+
+## RandomForestRegressor
+
+A random forest regressor that fits multiple decision trees and averages their predictions.
+
+### Constructor
+
+```typescript
+import { RandomForestRegressor } from "bun-scikit";
+
+const reg = new RandomForestRegressor({
+  nEstimators: 50,
+  maxDepth: 12,
+  minSamplesSplit: 2,
+  minSamplesLeaf: 1,
+  maxFeatures: "sqrt",
+  bootstrap: true,
+  randomState: 42
+});
+```
+
+### Parameters
+
+<ParamField path="nEstimators" type="number" default="50">
+  Number of trees in the forest.
+</ParamField>
+
+<ParamField path="maxDepth" type="number" default="12">
+  Maximum depth of each tree in the forest.
+</ParamField>
+
+<ParamField path="minSamplesSplit" type="number" default="2">
+  Minimum number of samples required to split an internal node.
+</ParamField>
+
+<ParamField path="minSamplesLeaf" type="number" default="1">
+  Minimum number of samples required to be at a leaf node.
+</ParamField>
+
+<ParamField path="maxFeatures" type="'sqrt' | 'log2' | number | null" default="'sqrt'">
+  Number of features to consider when looking for the best split.
+</ParamField>
+
+<ParamField path="bootstrap" type="boolean" default="true">
+  Whether to use bootstrap samples when building trees.
+</ParamField>
+
+<ParamField path="randomState" type="number" optional>
+  Random seed for reproducible results.
+</ParamField>
+
+### Methods
+
+#### fit()
+
+Train the random forest regressor.
+
+```typescript
+reg.fit(X: Matrix, y: Vector): RandomForestRegressor
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [n_samples, n_features].
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values (continuous).
+</ParamField>
+
+#### predict()
+
+Predict target values by averaging predictions from all trees.
+
+```typescript
+reg.predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Samples to predict, shape [n_samples, n_features].
+</ParamField>
+
+**Returns:** Predicted continuous values (average across all trees).
+
+#### score()
+
+Return the R² score on the given test data.
+
+```typescript
+reg.score(X: Matrix, y: Vector): number
+```
+
+**Returns:** R² score (coefficient of determination).
+
+### Properties
+
+<ParamField path="featureImportances_" type="Vector | null" readonly>
+  Aggregated feature importances across all trees.
+</ParamField>
+
+### Example
+
+```typescript
+import { RandomForestRegressor } from "bun-scikit";
+
+// Create regressor with 200 trees
+const reg = new RandomForestRegressor({ 
+  nEstimators: 200,
+  maxDepth: 8,
+  randomState: 42 
+});
+
+// Housing price data (features: size, bedrooms, age)
+const X = [
+  [1500, 3, 10],
+  [1800, 4, 5],
+  [2400, 4, 8],
+  [1200, 2, 15],
+  [3000, 5, 2]
+];
+const y = [300000, 380000, 450000, 250000, 550000];
+
+// Train
+reg.fit(X, y);
+
+// Predict price for new house
+const newHouse = [[2000, 3, 7]];
+const predictedPrice = reg.predict(newHouse);
+console.log(`Predicted price: $${predictedPrice[0].toFixed(0)}`);
+
+// R² score
+const r2 = reg.score(X, y);
+console.log(`R² score: ${r2.toFixed(4)}`);
+
+// Feature importances
+console.log("Feature importances:");
+const features = ["size", "bedrooms", "age"];
+reg.featureImportances_?.forEach((imp, i) => {
+  console.log(`  ${features[i]}: ${imp.toFixed(4)}`);
+});
+```

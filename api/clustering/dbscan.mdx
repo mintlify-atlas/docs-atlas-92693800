@@ -1,0 +1,224 @@
+---
+title: 'DBSCAN'
+description: 'Density-Based Spatial Clustering of Applications with Noise'
+---
+
+## Overview
+
+DBSCAN (Density-Based Spatial Clustering of Applications with Noise) is a density-based clustering algorithm that groups together points that are closely packed together, marking points in low-density regions as outliers.
+
+## Constructor
+
+```typescript
+new DBSCAN(options?: DBSCANOptions)
+```
+
+### Parameters
+
+<ParamField path="options" type="DBSCANOptions" default="{}">
+  Configuration options for DBSCAN clustering
+  
+  <Expandable title="properties">
+    <ParamField path="eps" type="number" default="0.5">
+      Maximum distance between two samples for them to be considered neighbors. Must be finite and > 0.
+    </ParamField>
+    
+    <ParamField path="minSamples" type="number" default="5">
+      Minimum number of samples in a neighborhood for a point to be considered a core point. Must be an integer >= 1.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the DBSCAN model to the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where rows are samples and columns are features. Must be non-empty with consistent row sizes and finite values.
+</ParamField>
+
+**Returns:** The fitted DBSCAN instance (for method chaining).
+
+**Throws:** Error if data validation fails.
+
+### fitPredict
+
+Fit the model and return cluster labels for training data.
+
+```typescript
+fitPredict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and predict on.
+</ParamField>
+
+**Returns:** Vector of cluster labels. Core and border points are assigned cluster IDs (0, 1, 2, ...), while noise points are labeled -1.
+
+## Properties
+
+<ParamField path="labels_" type="Vector | null">
+  Cluster labels for each sample. Label -1 indicates noise points.
+</ParamField>
+
+<ParamField path="coreSampleIndices_" type="number[] | null">
+  Indices of core samples (points with at least minSamples neighbors within eps distance).
+</ParamField>
+
+<ParamField path="components_" type="Matrix | null">
+  Copy of core samples found during fitting.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fitting.
+</ParamField>
+
+### nClusters_
+
+Getter property that returns the number of clusters found (excluding noise).
+
+```typescript
+get nClusters_(): number
+```
+
+**Returns:** Number of distinct clusters (not counting noise points).
+
+## Examples
+
+### Basic Clustering with Noise Detection
+
+```typescript
+import { DBSCAN } from 'bun-scikit';
+
+// Create sample data with noise
+const X = [
+  [1.0, 2.0],
+  [1.5, 1.8],
+  [1.2, 2.1],
+  [8.0, 8.0],
+  [8.1, 8.2],
+  [25.0, 25.0],  // Outlier
+  [7.9, 8.1]
+];
+
+// Create and fit DBSCAN model
+const dbscan = new DBSCAN({ eps: 0.5, minSamples: 2 });
+dbscan.fit(X);
+
+console.log('Labels:', dbscan.labels_);
+// Output: [0, 0, 0, 1, 1, -1, 1]
+// Cluster 0: first 3 points
+// Cluster 1: points 3,4,6
+// -1: noise point (outlier)
+
+console.log('Number of clusters:', dbscan.nClusters_);
+console.log('Core samples:', dbscan.coreSampleIndices_);
+```
+
+### Anomaly Detection
+
+```typescript
+import { DBSCAN } from 'bun-scikit';
+
+const data = [
+  [1.0, 2.0], [1.2, 2.1], [1.1, 1.9],  // Normal cluster
+  [5.0, 5.0], [5.1, 5.2], [4.9, 5.1],  // Normal cluster
+  [10.0, 10.0],                         // Anomaly
+  [-5.0, -5.0]                          // Anomaly
+];
+
+const dbscan = new DBSCAN({ eps: 0.5, minSamples: 3 });
+dbscan.fit(data);
+
+// Find anomalies (noise points)
+const anomalies = data.filter((_, idx) => dbscan.labels_![idx] === -1);
+console.log('Detected anomalies:', anomalies);
+// Output: [[10.0, 10.0], [-5.0, -5.0]]
+```
+
+### Adjusting Density Parameters
+
+```typescript
+import { DBSCAN } from 'bun-scikit';
+
+const X = [
+  [1.0, 2.0], [2.0, 2.0], [2.0, 3.0],
+  [8.0, 7.0], [8.0, 8.0], [25.0, 80.0]
+];
+
+// Strict clustering (smaller eps, more minSamples)
+const strict = new DBSCAN({ eps: 1.5, minSamples: 3 });
+strict.fit(X);
+console.log('Strict labels:', strict.labels_);
+console.log('Strict clusters:', strict.nClusters_);
+
+// Loose clustering (larger eps, fewer minSamples)
+const loose = new DBSCAN({ eps: 3.0, minSamples: 2 });
+loose.fit(X);
+console.log('Loose labels:', loose.labels_);
+console.log('Loose clusters:', loose.nClusters_);
+```
+
+### Geographic Clustering
+
+```typescript
+import { DBSCAN } from 'bun-scikit';
+
+// Latitude, Longitude coordinates
+const locations = [
+  [40.7128, -74.0060],  // New York
+  [40.7589, -73.9851],  // New York (nearby)
+  [34.0522, -118.2437], // Los Angeles
+  [34.0489, -118.2518], // Los Angeles (nearby)
+  [51.5074, -0.1278],   // London
+];
+
+// Cluster nearby locations (eps in degrees)
+const dbscan = new DBSCAN({ eps: 0.5, minSamples: 2 });
+dbscan.fit(locations);
+
+console.log('Location clusters:', dbscan.labels_);
+// Groups nearby cities together
+```
+
+## Algorithm Details
+
+DBSCAN classifies points into three categories:
+
+1. **Core points**: Points with at least `minSamples` neighbors within `eps` distance
+2. **Border points**: Non-core points within `eps` distance of a core point
+3. **Noise points**: Points that are neither core nor border (labeled as -1)
+
+The algorithm:
+1. For each unvisited point, find all neighbors within eps distance
+2. If point has >= minSamples neighbors, start a new cluster
+3. Expand cluster by recursively visiting neighbors
+4. Mark points that can't form/join clusters as noise
+
+## Advantages
+
+- Finds arbitrarily shaped clusters
+- Robust to outliers (marks them as noise)
+- No need to specify number of clusters
+- Works well with varying cluster densities
+
+## Considerations
+
+- Sensitive to eps and minSamples parameters
+- Not suitable for clusters with varying densities
+- Performance degrades with high-dimensional data
+- Time complexity: O(n²) with naive implementation
+
+## Parameter Selection
+
+**eps**: Start with average distance to k-th nearest neighbor (where k = minSamples)
+
+**minSamples**: Rule of thumb is 2 × dimensions, but adjust based on:
+- Larger values → fewer clusters, more noise
+- Smaller values → more clusters, less noise

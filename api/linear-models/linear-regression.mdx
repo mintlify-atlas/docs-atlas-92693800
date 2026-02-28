@@ -1,0 +1,143 @@
+---
+title: LinearRegression
+description: Ordinary least squares linear regression
+---
+
+## Overview
+
+`LinearRegression` fits a linear model with coefficients to minimize the residual sum of squares between the observed targets and the predictions. This implementation uses the normal equation method with native Zig acceleration.
+
+## Constructor
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+const model = new LinearRegression(options);
+```
+
+### Parameters
+
+<ParamField path="options" type="LinearRegressionOptions" default="{}">
+  Configuration options for the model
+  
+  <Expandable title="properties">
+    <ParamField path="fitIntercept" type="boolean" default="true">
+      Whether to calculate the intercept for this model. If set to `false`, no intercept will be used in calculations.
+    </ParamField>
+    
+    <ParamField path="solver" type="'normal'" default="'normal'">
+      The solver to use for fitting. Currently only `'normal'` (normal equation) is supported.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the linear model using training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+**Parameters:**
+- `X`: Training data matrix of shape `[nSamples, nFeatures]`
+- `y`: Target values vector of length `nSamples`
+- `sampleWeight`: Optional sample weights (not currently used)
+
+**Returns:** The fitted model instance
+
+**Example:**
+```typescript
+const X = [[1], [2], [3], [4], [5]];
+const y = [3, 5, 7, 9, 11]; // y = 2x + 1
+
+const model = new LinearRegression({ solver: "normal" });
+model.fit(X, y);
+```
+
+### predict
+
+Predict using the linear model.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+**Parameters:**
+- `X`: Samples matrix of shape `[nSamples, nFeatures]`
+
+**Returns:** Predicted values vector of length `nSamples`
+
+**Example:**
+```typescript
+const predictions = model.predict([[6]]);
+console.log(predictions[0]); // ~13
+```
+
+### score
+
+Return the coefficient of determination (R² score) of the prediction.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+**Parameters:**
+- `X`: Test samples matrix
+- `y`: True target values
+
+**Returns:** R² score (coefficient of determination)
+
+## Attributes
+
+After fitting, the following attributes are available:
+
+<ParamField path="coef_" type="Vector">
+  Estimated coefficients for the linear regression problem
+</ParamField>
+
+<ParamField path="intercept_" type="number">
+  Independent term in the linear model
+</ParamField>
+
+<ParamField path="fitBackend_" type="'zig'">
+  The backend used for fitting (always `'zig'` for LinearRegression)
+</ParamField>
+
+<ParamField path="fitBackendLibrary_" type="string | null">
+  Path to the native library used for fitting
+</ParamField>
+
+## Complete Example
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+// Training data: y = 2x + 1
+const X = [[1], [2], [3], [4], [5]];
+const y = [3, 5, 7, 9, 11];
+
+// Create and fit the model
+const model = new LinearRegression({ solver: "normal" });
+model.fit(X, y);
+
+// Check the learned parameters
+console.log("Intercept:", model.intercept_); // ~1
+console.log("Coefficient:", model.coef_[0]); // ~2
+
+// Make predictions
+const prediction = model.predict([[6]])[0];
+console.log("Prediction for x=6:", prediction); // ~13
+
+// Evaluate the model
+const r2 = model.score(X, y);
+console.log("R² score:", r2); // ~1.0
+```
+
+## Notes
+
+- LinearRegression requires native Zig kernels. Build them with `bun run native:build` if not using prebuilt binaries.
+- The normal equation solver has O(n³) time complexity for feature count n, so may be slow for very high-dimensional data.
+- For regularized linear regression, see [Ridge](/api/linear-models/ridge), [Lasso](/api/linear-models/lasso), or [ElasticNet](/api/linear-models/elastic-net).

@@ -1,0 +1,131 @@
+---
+title: SelectKBest
+description: Select top K features based on univariate statistical tests
+---
+
+## Overview
+
+SelectKBest selects the K highest scoring features according to a scoring function. Commonly used scoring functions include chi2, f_classif, and mutual_info_classif.
+
+## Constructor
+
+```typescript
+new SelectKBest(scoreFunc, options?)
+```
+
+### Parameters
+
+<ParamField path="scoreFunc" type="Function" required>
+  Scoring function that takes (X, y) and returns scores and p-values.
+  Common choices: `chi2`, `f_classif`, `f_regression`, `mutualInfoClassif`.
+</ParamField>
+
+<ParamField path="options.k" type="number | 'all'" default="10">
+  Number of top features to select. Use `'all'` to keep all features.
+</ParamField>
+
+## Methods
+
+### fit()
+
+```typescript
+fit(X: Matrix, y: Vector): this
+```
+
+Run score function on (X, y) and select features.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+<ParamField path="y" type="Vector" required>
+  Target values.
+</ParamField>
+
+### transform()
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Reduce X to selected features.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform.
+</ParamField>
+
+### fitTransform()
+
+```typescript
+fitTransform(X: Matrix, y: Vector): Matrix
+```
+
+Fit and transform in one step.
+
+## Properties
+
+<ParamField path="scores_" type="number[] | null">
+  Scores of all features.
+</ParamField>
+
+<ParamField path="pvalues_" type="number[] | null">
+  P-values of feature scores (if supported by scoring function).
+</ParamField>
+
+<ParamField path="selectedFeatureIndices_" type="number[] | null">
+  Indices of selected features.
+</ParamField>
+
+## Examples
+
+### Classification with chi2
+
+```typescript
+import { SelectKBest, chi2, LogisticRegression } from "bun-scikit";
+
+const selector = new SelectKBest(chi2, { k: 5 });
+const XNew = selector.fitTransform(XTrain, yTrain);
+
+console.log("Selected features:", selector.selectedFeatureIndices_);
+console.log("Feature scores:", selector.scores_);
+
+const model = new LogisticRegression();
+model.fit(XNew, yTrain);
+```
+
+### Regression with f_regression
+
+```typescript
+import { SelectKBest, f_regression, LinearRegression } from "bun-scikit";
+
+const selector = new SelectKBest(f_regression, { k: 3 });
+const XTrain_selected = selector.fitTransform(XTrain, yTrain);
+const XTest_selected = selector.transform(XTest);
+
+const model = new LinearRegression();
+model.fit(XTrain_selected, yTrain);
+const predictions = model.predict(XTest_selected);
+```
+
+### Use in pipeline
+
+```typescript
+import { Pipeline, SelectKBest, f_classif, StandardScaler, SVC } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["feature_selection", new SelectKBest(f_classif, { k: 20 })],
+  ["scaler", new StandardScaler()],
+  ["svm", new SVC({ kernel: "rbf" })]
+]);
+
+pipeline.fit(XTrain, yTrain);
+const score = pipeline.score(XTest, yTest);
+```
+
+## Notes
+
+- Univariate feature selection examines each feature independently
+- Does not account for feature interactions
+- Fast and scalable to high-dimensional datasets
+- chi2 requires non-negative features (e.g., count data, TF-IDF)
+- f_classif and f_regression are suitable for continuous features

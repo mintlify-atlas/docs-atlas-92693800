@@ -1,0 +1,266 @@
+---
+title: 'Scikit-learn Parity Matrix'
+description: 'Track bun-scikit API coverage compared to scikit-learn'
+icon: 'table-cells'
+---
+
+<Info>
+  **Parity Status**: bun-scikit implements a comprehensive subset of scikit-learn APIs with focus on core machine learning workflows and performance.
+</Info>
+
+## Coverage Overview
+
+The following matrix shows which scikit-learn APIs are available in bun-scikit. New APIs are continuously added based on community needs and usage patterns.
+
+<AccordionGroup>
+  <Accordion title="Linear Models" icon="chart-line">
+    | API | Status |
+    | --- | --- |
+    | LinearRegression | <Check /> |
+    | LogisticRegression | <Check /> |
+    | SGDClassifier | <Check /> |
+    | SGDRegressor | <Check /> |
+    | LinearSVC | <Check /> |
+  </Accordion>
+
+  <Accordion title="Tree & Ensemble Models" icon="tree">
+    | API | Status |
+    | --- | --- |
+    | DecisionTreeClassifier | <Check /> |
+    | DecisionTreeRegressor | <Check /> |
+    | RandomForestClassifier | <Check /> |
+    | RandomForestRegressor | <Check /> |
+    | AdaBoostClassifier | <Check /> |
+    | GradientBoostingClassifier | <Check /> |
+    | GradientBoostingRegressor | <Check /> |
+    | HistGradientBoostingClassifier | <Check /> |
+    | HistGradientBoostingRegressor | <Check /> |
+  </Accordion>
+
+  <Accordion title="Neighbors & Naive Bayes" icon="users">
+    | API | Status |
+    | --- | --- |
+    | KNeighborsClassifier | <Check /> |
+    | KNeighborsRegressor | <Check /> |
+    | GaussianNB | <Check /> |
+  </Accordion>
+
+  <Accordion title="Clustering" icon="circle-nodes">
+    | API | Status |
+    | --- | --- |
+    | KMeans | <Check /> |
+    | DBSCAN | <Check /> |
+    | AgglomerativeClustering | <Check /> |
+    | SpectralClustering | <Check /> |
+    | Birch | <Check /> |
+    | OPTICS | <Check /> |
+  </Accordion>
+
+  <Accordion title="Decomposition & Manifold Learning" icon="diagram-project">
+    | API | Status |
+    | --- | --- |
+    | PCA | <Check /> |
+    | TruncatedSVD | <Check /> |
+    | FastICA | <Check /> |
+    | NMF | <Check /> |
+    | KernelPCA | <Check /> |
+    | TSNE | <Check /> |
+    | Isomap | <Check /> |
+    | LocallyLinearEmbedding | <Check /> |
+    | MDS | <Check /> |
+  </Accordion>
+
+  <Accordion title="Anomaly Detection" icon="exclamation-triangle">
+    | API | Status |
+    | --- | --- |
+    | IsolationForest | <Check /> |
+    | LocalOutlierFactor | <Check /> |
+    | OneClassSVM | <Check /> |
+  </Accordion>
+
+  <Accordion title="Calibration & Meta-Estimators" icon="layer-group">
+    | API | Status |
+    | --- | --- |
+    | CalibratedClassifierCV | <Check /> |
+    | VotingClassifier | <Check /> |
+    | VotingRegressor | <Check /> |
+    | StackingClassifier | <Check /> |
+    | StackingRegressor | <Check /> |
+    | BaggingClassifier | <Check /> |
+    | BaggingRegressor | <Check /> |
+    | OneVsRestClassifier | <Check /> |
+    | OneVsOneClassifier | <Check /> |
+  </Accordion>
+
+  <Accordion title="Baseline Models" icon="ruler">
+    | API | Status |
+    | --- | --- |
+    | DummyClassifier | <Check /> |
+    | DummyRegressor | <Check /> |
+  </Accordion>
+
+  <Accordion title="Preprocessing" icon="filter">
+    | API | Status |
+    | --- | --- |
+    | StandardScaler | <Check /> |
+    | MinMaxScaler | <Check /> |
+    | RobustScaler | <Check /> |
+    | MaxAbsScaler | <Check /> |
+    | Normalizer | <Check /> |
+    | Binarizer | <Check /> |
+    | LabelEncoder | <Check /> |
+    | PolynomialFeatures | <Check /> |
+    | SimpleImputer | <Check /> |
+    | OneHotEncoder | <Check /> |
+  </Accordion>
+
+  <Accordion title="Pipeline & Composition" icon="diagram-next">
+    | API | Status |
+    | --- | --- |
+    | Pipeline | <Check /> |
+    | ColumnTransformer | <Check /> |
+    | FeatureUnion | <Check /> |
+  </Accordion>
+
+  <Accordion title="Feature Selection" icon="magnifying-glass">
+    | API | Status |
+    | --- | --- |
+    | VarianceThreshold | <Check /> |
+    | SelectKBest | <Check /> |
+    | SelectPercentile | <Check /> |
+    | SelectFromModel | <Check /> |
+    | RFE | <Check /> |
+    | RFECV | <Check /> |
+    | chi2 | <Check /> |
+    | f_classif | <Check /> |
+    | f_regression | <Check /> |
+    | mutualInfoClassif | <Check /> |
+    | mutualInfoRegression | <Check /> |
+  </Accordion>
+
+  <Accordion title="Model Selection" icon="sliders">
+    | API | Status |
+    | --- | --- |
+    | trainTestSplit | <Check /> |
+    | KFold | <Check /> |
+    | GroupKFold | <Check /> |
+    | GroupShuffleSplit | <Check /> |
+    | StratifiedKFold | <Check /> |
+    | StratifiedGroupKFold | <Check /> |
+    | StratifiedShuffleSplit | <Check /> |
+    | RepeatedKFold | <Check /> |
+    | RepeatedStratifiedKFold | <Check /> |
+    | crossValScore | <Check /> |
+    | crossValidate | <Check /> |
+    | crossValPredict | <Check /> |
+    | learningCurve | <Check /> |
+    | validationCurve | <Check /> |
+    | GridSearchCV | <Check /> |
+    | RandomizedSearchCV | <Check /> |
+  </Accordion>
+
+  <Accordion title="Regression Metrics" icon="chart-line">
+    | API | Status |
+    | --- | --- |
+    | meanSquaredError | <Check /> |
+    | meanAbsoluteError | <Check /> |
+    | r2Score | <Check /> |
+    | meanAbsolutePercentageError | <Check /> |
+    | explainedVarianceScore | <Check /> |
+  </Accordion>
+
+  <Accordion title="Classification Metrics" icon="chart-bar">
+    | API | Status |
+    | --- | --- |
+    | accuracyScore | <Check /> |
+    | precisionScore | <Check /> |
+    | recallScore | <Check /> |
+    | f1Score | <Check /> |
+    | balancedAccuracyScore | <Check /> |
+    | matthewsCorrcoef | <Check /> |
+    | logLoss | <Check /> |
+    | brierScoreLoss | <Check /> |
+    | rocAucScore | <Check /> |
+    | confusionMatrix | <Check /> |
+    | classificationReport | <Check /> |
+  </Accordion>
+
+  <Accordion title="Clustering Metrics" icon="circle-nodes">
+    | API | Status |
+    | --- | --- |
+    | silhouetteScore | <Check /> |
+    | calinskiHarabaszScore | <Check /> |
+    | daviesBouldinScore | <Check /> |
+    | adjustedRandScore | <Check /> |
+  </Accordion>
+
+  <Accordion title="Model Inspection" icon="magnifying-glass-chart">
+    | API | Status |
+    | --- | --- |
+    | permutationImportance | <Check /> |
+    | partialDependence | <Check /> |
+    | permutationTestScore | <Check /> |
+  </Accordion>
+</AccordionGroup>
+
+## Multiclass Support
+
+<CardGroup cols={2}>
+  <Card title="Fully Supported" icon="check-double">
+    The following classifiers support multiclass classification out of the box:
+    - GaussianNB
+    - KNeighborsClassifier
+    - LogisticRegression
+    - SGDClassifier
+    - LinearSVC
+    - DecisionTreeClassifier
+    - RandomForestClassifier
+    - VotingClassifier
+    - StackingClassifier
+    - BaggingClassifier
+    - CalibratedClassifierCV
+  </Card>
+
+  <Card title="Native Zig Acceleration" icon="zap">
+    `DecisionTreeClassifier` and `RandomForestClassifier` support multiclass native Zig fit/predict paths (up to 256 encoded classes) when `BUN_SCIKIT_TREE_BACKEND=zig`.
+  </Card>
+</CardGroup>
+
+## Known Gaps
+
+<Warning>
+  **Near-term parity gaps** vs scikit-learn include:
+  - Richer decomposition and covariance APIs
+  - Feature extraction/image modules
+  - Expanded anomaly/density estimators
+  - Broader model-inspection display/reporting utilities
+</Warning>
+
+## Parity Validation
+
+<Steps>
+  <Step title="API Coverage">
+    API parity matrix coverage is enforced in CI using:
+    ```bash
+    bun run parity:matrix:check
+    ```
+  </Step>
+  
+  <Step title="Output Validation">
+    sklearn snapshot fixtures with multi-seed drift checks:
+    ```bash
+    bun run parity:check
+    ```
+  </Step>
+  
+  <Step title="Parity Reports">
+    Generate versioned parity report artifacts:
+    ```bash
+    bun run parity:report
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  Parity checks use fixture-based testing against actual scikit-learn outputs to ensure behavioral compatibility.
+</Tip>

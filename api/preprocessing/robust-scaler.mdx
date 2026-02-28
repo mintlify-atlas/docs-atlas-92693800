@@ -1,0 +1,168 @@
+---
+title: RobustScaler
+description: Scale features using statistics that are robust to outliers
+---
+
+## Overview
+
+RobustScaler scales features using the median and interquartile range (IQR), making it robust to outliers. This scaler removes the median and scales the data according to the quantile range.
+
+## Constructor
+
+```typescript
+new RobustScaler(options?: RobustScalerOptions)
+```
+
+<ParamField path="options.withCentering" type="boolean" default="true">
+  If true, center the data before scaling by removing the median.
+</ParamField>
+
+<ParamField path="options.withScaling" type="boolean" default="true">
+  If true, scale the data to the interquartile range.
+</ParamField>
+
+<ParamField path="options.quantileRange" type="[number, number]" default="[25, 75]">
+  Quantile range used to calculate scale. The default [25, 75] corresponds to the IQR. Values must satisfy 0 ≤ qMin &lt; qMax ≤ 100.
+</ParamField>
+
+## Properties
+
+<ParamField path="center_" type="Vector | null">
+  The median value for each feature in the training set.
+</ParamField>
+
+<ParamField path="scale_" type="Vector | null">
+  The interquartile range (or custom quantile range) for each feature in the training set.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute the median and quantiles to be used for scaling.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a feature.
+</ParamField>
+
+**Returns:** `this` - The fitted scaler instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Center and scale the data.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data.
+
+### inverseTransform
+
+```typescript
+inverseTransform(X: Matrix): Matrix
+```
+
+Scale back the data to the original representation.
+
+<ParamField path="X" type="Matrix" required>
+  Transformed data matrix to inverse transform.
+</ParamField>
+
+**Returns:** `Matrix` - Original scale data.
+
+## Example
+
+```typescript
+import { RobustScaler } from 'bun-scikit';
+
+// Training data with outliers
+const X = [
+  [1, 2],
+  [2, 4],
+  [3, 6],
+  [4, 8],
+  [100, 200]  // Outlier
+];
+
+// Create and fit scaler (default: use IQR)
+const scaler = new RobustScaler();
+const XScaled = scaler.fitTransform(X);
+
+console.log('Center (median):', scaler.center_);
+// Output: Center (median): [3, 6]
+
+console.log('Scale (IQR):', scaler.scale_);
+// Output: Scale (IQR): [2, 4]
+
+console.log('Scaled:', XScaled);
+// Outlier is less extreme in scaled space
+
+// Custom quantile range
+const scaler2 = new RobustScaler({ quantileRange: [10, 90] });
+const XScaled2 = scaler2.fitTransform(X);
+
+// Only centering (no scaling)
+const scaler3 = new RobustScaler({ withScaling: false });
+const XCentered = scaler3.fitTransform(X);
+console.log('Centered only:', XCentered);
+
+// Inverse transform
+const XOriginal = scaler.inverseTransform(XScaled);
+console.log('Original:', XOriginal);
+```
+
+## Example: Comparison with StandardScaler
+
+```typescript
+import { RobustScaler, StandardScaler } from 'bun-scikit';
+
+const XWithOutliers = [
+  [1, 1],
+  [2, 2],
+  [3, 3],
+  [1000, 1000]  // Extreme outlier
+];
+
+// StandardScaler is affected by outliers
+const stdScaler = new StandardScaler();
+const XStd = stdScaler.fitTransform(XWithOutliers);
+console.log('StandardScaler mean:', stdScaler.mean_);
+// Output: StandardScaler mean: [251.5, 251.5] (heavily influenced by outlier)
+
+// RobustScaler is resistant to outliers
+const robustScaler = new RobustScaler();
+const XRobust = robustScaler.fitTransform(XWithOutliers);
+console.log('RobustScaler median:', robustScaler.center_);
+// Output: RobustScaler median: [2.5, 2.5] (not influenced by outlier)
+```
+
+## Notes
+
+- More robust to outliers compared to StandardScaler
+- Features with zero IQR (constant within the quantile range) are not scaled
+- The scaler must be fitted before calling `transform()` or `inverseTransform()`
+- Input data must be finite (no NaN or Infinity values)
+- Best choice when data contains outliers that should not influence scaling

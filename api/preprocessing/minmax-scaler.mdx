@@ -1,0 +1,142 @@
+---
+title: MinMaxScaler
+description: Scale features to a given range, typically [0, 1]
+---
+
+## Overview
+
+MinMaxScaler transforms features by scaling each feature to a given range. The default range is [0, 1].
+
+## Constructor
+
+```typescript
+new MinMaxScaler(options?: MinMaxScalerOptions)
+```
+
+<ParamField path="options.featureRange" type="[number, number]" default="[0, 1]">
+  Desired range of transformed data as `[min, max]`. Both values must be finite and min must be less than max.
+</ParamField>
+
+## Properties
+
+<ParamField path="dataMin_" type="Vector | null">
+  Per feature minimum seen in the training data.
+</ParamField>
+
+<ParamField path="dataMax_" type="Vector | null">
+  Per feature maximum seen in the training data.
+</ParamField>
+
+<ParamField path="dataRange_" type="Vector | null">
+  Per feature range (dataMax_ - dataMin_) in the training data.
+</ParamField>
+
+<ParamField path="scale_" type="Vector | null">
+  Per feature scaling factor.
+</ParamField>
+
+<ParamField path="min_" type="Vector | null">
+  Per feature minimum offset.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute the minimum and maximum to be used for later scaling.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix where each row is a sample and each column is a feature.
+</ParamField>
+
+**Returns:** `this` - The fitted scaler instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Scale features of X according to feature_range.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data scaled to the specified range.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and transform.
+</ParamField>
+
+**Returns:** `Matrix` - Transformed data.
+
+### inverseTransform
+
+```typescript
+inverseTransform(X: Matrix): Matrix
+```
+
+Undo the scaling of X according to feature_range.
+
+<ParamField path="X" type="Matrix" required>
+  Transformed data matrix to inverse transform.
+</ParamField>
+
+**Returns:** `Matrix` - Original scale data.
+
+## Example
+
+```typescript
+import { MinMaxScaler } from 'bun-scikit';
+
+// Training data
+const X = [
+  [1, 2],
+  [2, 4],
+  [3, 6],
+  [4, 8]
+];
+
+// Scale to [0, 1] (default)
+const scaler = new MinMaxScaler();
+const XScaled = scaler.fitTransform(X);
+console.log('Scaled [0,1]:', XScaled);
+// Output: Scaled [0,1]: [[0, 0], [0.333, 0.333], [0.667, 0.667], [1, 1]]
+
+// Scale to custom range [-1, 1]
+const scaler2 = new MinMaxScaler({ featureRange: [-1, 1] });
+const XScaled2 = scaler2.fitTransform(X);
+console.log('Scaled [-1,1]:', XScaled2);
+// Output: Scaled [-1,1]: [[-1, -1], [-0.333, -0.333], [0.333, 0.333], [1, 1]]
+
+// Check fitted parameters
+console.log('Data min:', scaler.dataMin_);
+// Output: Data min: [1, 2]
+console.log('Data max:', scaler.dataMax_);
+// Output: Data max: [4, 8]
+
+// Inverse transform
+const XOriginal = scaler.inverseTransform(XScaled);
+console.log('Original:', XOriginal);
+// Output: Original: [[1, 2], [2, 4], [3, 6], [4, 8]]
+```
+
+## Notes
+
+- Features with zero range (constant values) are not scaled
+- The scaler must be fitted before calling `transform()` or `inverseTransform()`
+- Input data must be finite (no NaN or Infinity values)
+- Useful when features need to be in a specific bounded range

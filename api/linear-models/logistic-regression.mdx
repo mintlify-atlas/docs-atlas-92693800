@@ -1,0 +1,231 @@
+---
+title: LogisticRegression
+description: Logistic regression classifier with gradient descent or L-BFGS optimization
+---
+
+## Overview
+
+`LogisticRegression` implements logistic regression using gradient descent or L-BFGS optimization with native Zig acceleration. It supports both binary and multiclass classification via a one-vs-rest strategy.
+
+## Constructor
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+const model = new LogisticRegression(options);
+```
+
+### Parameters
+
+<ParamField path="options" type="LogisticRegressionOptions" default="{}">
+  Configuration options for the model
+  
+  <Expandable title="properties">
+    <ParamField path="fitIntercept" type="boolean" default="true">
+      Whether to calculate the intercept for this model.
+    </ParamField>
+    
+    <ParamField path="solver" type="'gd' | 'lbfgs'" default="'gd'">
+      The optimization algorithm to use:
+      - `'gd'`: Gradient descent
+      - `'lbfgs'`: Limited-memory BFGS (faster convergence, requires native kernels)
+    </ParamField>
+    
+    <ParamField path="learningRate" type="number" default="0.1">
+      Learning rate for gradient descent (only used when `solver='gd'`)
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="20000">
+      Maximum number of iterations for optimization
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-8">
+      Tolerance for stopping criterion
+    </ParamField>
+    
+    <ParamField path="l2" type="number" default="0">
+      L2 regularization strength (ridge penalty)
+    </ParamField>
+    
+    <ParamField path="lbfgsMemory" type="number" default="7">
+      Number of past gradients to store for L-BFGS (only used when `solver='lbfgs'`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit the logistic regression model using training data.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+**Parameters:**
+- `X`: Training data matrix of shape `[nSamples, nFeatures]`
+- `y`: Target class labels vector of length `nSamples`
+- `sampleWeight`: Optional sample weights (not currently used)
+
+**Returns:** The fitted model instance
+
+**Example:**
+```typescript
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 0, 0, 1, 1, 1];
+
+const model = new LogisticRegression({
+  learningRate: 0.2,
+  maxIter: 40_000,
+  tolerance: 1e-10,
+});
+model.fit(X, y);
+```
+
+### predict
+
+Predict class labels for samples.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+**Parameters:**
+- `X`: Samples matrix of shape `[nSamples, nFeatures]`
+
+**Returns:** Predicted class labels vector of length `nSamples`
+
+**Example:**
+```typescript
+const predictions = model.predict([[-1], [6]]);
+console.log(predictions); // [0, 1]
+```
+
+### predictProba
+
+Predict class probabilities for samples.
+
+```typescript
+predictProba(X: Matrix): Matrix
+```
+
+**Parameters:**
+- `X`: Samples matrix of shape `[nSamples, nFeatures]`
+
+**Returns:** Probability matrix of shape `[nSamples, nClasses]`
+
+**Example:**
+```typescript
+const proba = model.predictProba([[2.5]]);
+console.log(proba[0]); // [0.4-0.6, 0.4-0.6] for boundary case
+```
+
+### score
+
+Return the mean accuracy on the test data.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+**Parameters:**
+- `X`: Test samples matrix
+- `y`: True class labels
+
+**Returns:** Mean accuracy (0 to 1)
+
+## Attributes
+
+After fitting, the following attributes are available:
+
+<ParamField path="coef_" type="Vector | Matrix">
+  Coefficient array:
+  - For binary classification: `Vector` of length `nFeatures`
+  - For multiclass: `Matrix` of shape `[nClasses, nFeatures]`
+</ParamField>
+
+<ParamField path="intercept_" type="number | Vector">
+  Intercept (bias) term:
+  - For binary classification: single `number`
+  - For multiclass: `Vector` of length `nClasses`
+</ParamField>
+
+<ParamField path="classes_" type="Vector">
+  Unique class labels encountered during fit
+</ParamField>
+
+<ParamField path="fitBackend_" type="'zig'">
+  The backend used for fitting (always `'zig'`)
+</ParamField>
+
+<ParamField path="fitBackendLibrary_" type="string | null">
+  Path to the native library used for fitting
+</ParamField>
+
+## Complete Example
+
+### Binary Classification
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+const X = [[0], [1], [2], [3], [4], [5]];
+const y = [0, 0, 0, 1, 1, 1];
+
+const model = new LogisticRegression({
+  learningRate: 0.2,
+  maxIter: 40_000,
+  tolerance: 1e-10,
+});
+
+model.fit(X, y);
+
+// Predictions
+const preds = model.predict(X);
+const accuracy = preds.filter((pred, idx) => pred === y[idx]).length / y.length;
+console.log("Accuracy:", accuracy); // >0.99
+
+// Probabilities
+const proba = model.predictProba([[2.5]])[0][1];
+console.log("P(class=1) at x=2.5:", proba); // ~0.5 (decision boundary)
+```
+
+### Multiclass Classification
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+const X = [
+  [0, 0],
+  [0.1, 0.2],
+  [0.2, -0.1],
+  [2.0, 2.1],
+  [2.2, 1.9],
+  [1.8, 2.0],
+  [4.0, 4.2],
+  [3.9, 4.1],
+  [4.2, 3.8],
+];
+const y = [0, 0, 0, 1, 1, 1, 2, 2, 2];
+
+const model = new LogisticRegression({
+  solver: "lbfgs",
+  maxIter: 60,
+  tolerance: 1e-6,
+  l2: 0.01,
+});
+
+model.fit(X, y);
+console.log("Score:", model.score(X, y)); // >0.95
+
+const proba = model.predictProba([[0.1, 0.1], [2.1, 2.0], [4.1, 4.0]]);
+console.log("Probabilities shape:", proba[0].length); // 3 classes
+```
+
+## Notes
+
+- LogisticRegression requires native Zig kernels. Build them with `bun run native:build` if not using prebuilt binaries.
+- For multiclass problems, the model uses a one-vs-rest (OvR) strategy.
+- The L-BFGS solver (`solver='lbfgs'`) typically converges faster than gradient descent but requires model-handle native kernels.
+- L2 regularization helps prevent overfitting, especially with high-dimensional data.

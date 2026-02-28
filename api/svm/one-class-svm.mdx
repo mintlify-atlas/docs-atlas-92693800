@@ -1,0 +1,377 @@
+---
+title: 'OneClassSVM'
+description: 'Unsupervised outlier detection using Support Vector Machines'
+---
+
+## Overview
+
+The `OneClassSVM` implements one-class SVM for unsupervised outlier detection. It learns a decision function for novelty detection: classifying new data as similar or different to the training set.
+
+## Constructor
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+const detector = new OneClassSVM({
+  nu: 0.5,
+  kernel: 'rbf',
+  gamma: 'scale'
+});
+```
+
+### Parameters
+
+<ParamField path="nu" type="number" default={0.5}>
+  An upper bound on the fraction of training errors and a lower bound on the fraction of support vectors. Must be in the interval (0, 1].
+</ParamField>
+
+<ParamField path="kernel" type="'rbf' | 'linear'" default="rbf">
+  Kernel type to be used:
+  - `'rbf'`: Radial basis function kernel
+  - `'linear'`: Linear kernel
+</ParamField>
+
+<ParamField path="gamma" type="number | 'scale' | 'auto'" default="scale">
+  Kernel coefficient for RBF kernel:
+  - `'scale'`: `1 / (n_features * X.variance())`
+  - `'auto'`: `1 / n_features`
+  - `number`: Custom gamma value
+</ParamField>
+
+## Methods
+
+### fit()
+
+Fit the model using the training data.
+
+```typescript
+fit(X: Matrix): this
+```
+
+<ParamField path="X" type="Matrix" required>
+  Training data (samples assumed to be "normal" or inliers).
+</ParamField>
+
+**Returns:** `this` - The fitted detector.
+
+### predict()
+
+Perform classification on samples. Returns +1 for inliers and -1 for outliers.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector` - Returns +1 for inliers (normal samples) and -1 for outliers (anomalies).
+
+### decisionFunction()
+
+Signed distance to the separating hyperplane.
+
+```typescript
+decisionFunction(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector` - Signed distance values. Positive values indicate inliers, negative values indicate outliers.
+
+### scoreSamples()
+
+Raw scoring function of the samples.
+
+```typescript
+scoreSamples(X: Matrix): Vector
+```
+
+<ParamField path="X" type="Matrix" required>
+  Test samples.
+</ParamField>
+
+**Returns:** `Vector` - Raw anomaly scores.
+
+## Attributes
+
+<ParamField path="offset_" type="number">
+  Offset used to define the decision function.
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit.
+</ParamField>
+
+## Examples
+
+### Basic Outlier Detection
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+// Normal training data (clustered around origin)
+const XTrain = [
+  [0, 0], [0, 1], [1, 0], [1, 1],
+  [0.5, 0.5], [0, 0.5], [0.5, 0]
+];
+
+const detector = new OneClassSVM({ nu: 0.1, kernel: 'rbf' });
+detector.fit(XTrain);
+
+// Test data including outliers
+const XTest = [
+  [0.5, 0.5],  // inlier
+  [10, 10],    // outlier
+  [0, 0],      // inlier
+  [-5, -5]     // outlier
+];
+
+const predictions = detector.predict(XTest);
+console.log(predictions); // [1, -1, 1, -1]
+// 1 = inlier, -1 = outlier
+```
+
+### Novelty Detection
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+// Train on normal samples only
+const normalData = [
+  [2, 2], [2, 3], [3, 2], [3, 3],
+  [2.5, 2.5], [2.2, 2.8], [2.8, 2.2]
+];
+
+const detector = new OneClassSVM({ 
+  nu: 0.05,
+  kernel: 'rbf',
+  gamma: 'scale'
+});
+detector.fit(normalData);
+
+// Detect if new samples are similar to training data
+const newSamples = [
+  [2.5, 2.5],  // similar to training data
+  [10, 10],    // very different from training data
+  [2.3, 2.7]   // similar to training data
+];
+
+const isNormal = detector.predict(newSamples);
+console.log(isNormal); // [1, -1, 1]
+```
+
+### Using Decision Function
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+const XTrain = [
+  [0, 0], [1, 1], [1, 0], [0, 1]
+];
+
+const detector = new OneClassSVM({ nu: 0.1 });
+detector.fit(XTrain);
+
+const XTest = [[0.5, 0.5], [5, 5], [1, 0]];
+
+// Get decision function values
+const scores = detector.decisionFunction(XTest);
+console.log(scores);
+// Positive = inlier, Negative = outlier
+// Magnitude indicates confidence
+
+const predictions = detector.predict(XTest);
+console.log(predictions); // [1, -1, 1]
+```
+
+### Anomaly Scoring
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+const XTrain = [
+  [1, 1], [1, 2], [2, 1], [2, 2]
+];
+
+const detector = new OneClassSVM({ kernel: 'rbf' });
+detector.fit(XTrain);
+
+const XTest = [
+  [1.5, 1.5],  // very normal
+  [3, 3],      // slightly abnormal
+  [10, 10]     // very abnormal
+];
+
+// Get raw anomaly scores
+const rawScores = detector.scoreSamples(XTest);
+console.log('Raw scores:', rawScores);
+
+// Get decision function (calibrated scores)
+const decisionScores = detector.decisionFunction(XTest);
+console.log('Decision scores:', decisionScores);
+```
+
+### Tuning Nu Parameter
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+const XTrain = [
+  [0, 0], [1, 1], [1, 0], [0, 1],
+  [0.5, 0.5], [0.2, 0.8], [0.8, 0.2]
+];
+
+// Strict (expects fewer outliers)
+const strictDetector = new OneClassSVM({ nu: 0.05 });
+strictDetector.fit(XTrain);
+
+// Lenient (expects more outliers)
+const lenientDetector = new OneClassSVM({ nu: 0.3 });
+lenientDetector.fit(XTrain);
+
+const XTest = [[0.5, 0.5], [3, 3]];
+
+console.log('Strict:', strictDetector.predict(XTest));
+console.log('Lenient:', lenientDetector.predict(XTest));
+// Lower nu = stricter boundary
+```
+
+### Linear vs RBF Kernel
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+const XTrain = [[1, 1], [2, 2], [3, 3], [4, 4]];
+
+// Linear kernel (good for linearly separable data)
+const linearDetector = new OneClassSVM({ kernel: 'linear' });
+linearDetector.fit(XTrain);
+
+// RBF kernel (good for complex patterns)
+const rbfDetector = new OneClassSVM({ kernel: 'rbf' });
+rbfDetector.fit(XTrain);
+
+const XTest = [[2.5, 2.5], [10, 1]];
+
+console.log('Linear predictions:', linearDetector.predict(XTest));
+console.log('RBF predictions:', rbfDetector.predict(XTest));
+```
+
+### Fraud Detection Example
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+// Normal transaction patterns [amount, time_of_day]
+const normalTransactions = [
+  [50, 14],   // $50 at 2pm
+  [75, 18],   // $75 at 6pm
+  [30, 12],   // $30 at noon
+  [100, 19],  // $100 at 7pm
+  [45, 13],   // $45 at 1pm
+  [80, 17]    // $80 at 5pm
+];
+
+const detector = new OneClassSVM({ 
+  nu: 0.1,
+  kernel: 'rbf'
+});
+detector.fit(normalTransactions);
+
+// New transactions to check
+const newTransactions = [
+  [60, 15],    // Normal: $60 at 3pm
+  [5000, 3],   // Suspicious: $5000 at 3am
+  [70, 18]     // Normal: $70 at 6pm
+];
+
+const fraud = detector.predict(newTransactions);
+console.log(fraud); // [1, -1, 1]
+console.log('Fraud detected at indices:', 
+  fraud.map((v, i) => v === -1 ? i : -1).filter(i => i !== -1)
+);
+```
+
+### Sensor Data Anomaly Detection
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+// Normal sensor readings [temperature, pressure, vibration]
+const normalReadings = [
+  [20, 100, 0.1],
+  [21, 102, 0.12],
+  [19, 98, 0.09],
+  [20.5, 101, 0.11],
+  [19.5, 99, 0.10]
+];
+
+const detector = new OneClassSVM({ 
+  nu: 0.05,
+  gamma: 'auto'
+});
+detector.fit(normalReadings);
+
+// Monitor new readings
+const newReadings = [
+  [20, 100, 0.1],   // Normal
+  [25, 150, 0.5],   // Anomaly
+  [19.8, 101, 0.11] // Normal
+];
+
+const anomalies = detector.predict(newReadings);
+const scores = detector.decisionFunction(newReadings);
+
+console.log('Anomalies:', anomalies);
+console.log('Anomaly scores:', scores);
+```
+
+### Network Intrusion Detection
+
+```typescript
+import { OneClassSVM } from '@scikitjs/sklearn';
+
+// Normal network traffic patterns
+// Features: [packets_per_sec, bytes_per_packet, connection_duration]
+const normalTraffic = [
+  [100, 512, 5],
+  [120, 480, 6],
+  [95, 500, 4],
+  [110, 520, 5.5],
+  [105, 490, 4.8]
+];
+
+const detector = new OneClassSVM({ 
+  nu: 0.1,
+  kernel: 'rbf',
+  gamma: 'scale'
+});
+detector.fit(normalTraffic);
+
+// Detect suspicious traffic
+const newTraffic = [
+  [105, 500, 5],     // Normal
+  [10000, 64, 0.1],  // DDoS attack?
+  [100, 512, 5]      // Normal
+];
+
+const predictions = detector.predict(newTraffic);
+console.log('Intrusion detected:', 
+  predictions.map(p => p === -1 ? 'YES' : 'NO')
+);
+```
+
+## Notes
+
+- Train only on normal (inlier) data
+- The `nu` parameter controls the trade-off between the number of outliers and the model's flexibility
+- Smaller `nu` values create a tighter boundary around normal data
+- RBF kernel is generally more flexible than linear kernel
+- Feature scaling is recommended for optimal performance
+- The model learns the "shape" of normal data and flags deviations as outliers
+- Useful for anomaly detection, novelty detection, and outlier detection
+- Does not require labeled anomaly data during training

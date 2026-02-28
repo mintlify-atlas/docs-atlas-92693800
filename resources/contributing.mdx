@@ -1,0 +1,241 @@
+---
+title: 'Contributing'
+description: 'Guide for contributing to bun-scikit development'
+icon: 'code-pull-request'
+---
+
+<Note>
+  Thanks for contributing to `bun-scikit`! We welcome contributions from the community and appreciate your help in making this project better.
+</Note>
+
+## Development Setup
+
+<Steps>
+  <Step title="Install Bun">
+    Install Bun `>=1.3.9`:
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    Install project dependencies:
+    ```bash
+    bun install
+    ```
+  </Step>
+  
+  <Step title="Install Python Dependencies (Optional)">
+    For Python comparison benchmarks, install Python dependencies:
+    ```bash
+    python -m pip install -r bench/python/requirements.txt
+    ```
+  </Step>
+</Steps>
+
+## Project Commands
+
+<AccordionGroup>
+  <Accordion title="Testing" icon="flask">
+    ```bash
+    # Run all tests
+    bun run test
+    
+    # Run typecheck
+    bun run typecheck
+    ```
+  </Accordion>
+
+  <Accordion title="Documentation" icon="book">
+    ```bash
+    # Generate API docs
+    bun run docs:api:generate
+    
+    # Check API docs coverage
+    bun run docs:coverage:check
+    ```
+  </Accordion>
+
+  <Accordion title="Benchmarking" icon="stopwatch">
+    ```bash
+    # Heart benchmark (human-readable)
+    bun run bench
+    
+    # Heart classification benchmark
+    bun run bench:heart:classification
+    
+    # Heart tree benchmark
+    bun run bench:heart:tree
+    
+    # Generate CI benchmark snapshot locally
+    bun run bench:snapshot
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Pull Request Guidelines
+
+<CardGroup cols={2}>
+  <Card title="Scope" icon="bullseye">
+    Keep changes scoped to one objective. Focus on a single feature, bug fix, or improvement per PR.
+  </Card>
+  
+  <Card title="Testing" icon="check">
+    Include tests for behavioral changes. Ensure all tests pass before submitting.
+  </Card>
+  
+  <Card title="Documentation" icon="book">
+    Update docs when public APIs or workflows change. Keep documentation in sync with code.
+  </Card>
+  
+  <Card title="Changelog" icon="list">
+    Add changelog entries under `## [Unreleased]` in `CHANGELOG.md` for notable changes.
+  </Card>
+</CardGroup>
+
+### Pre-PR Checklist
+
+<Tip>
+  Run these commands locally before opening a pull request:
+</Tip>
+
+<CodeGroup>
+```bash Tests
+bun run test
+```
+
+```bash Type Check
+bun run typecheck
+```
+
+```bash Docs Coverage
+bun run docs:coverage:check
+```
+
+```bash Benchmark Check
+# Only if benchmark files were changed
+bun run bench:readme:check
+```
+</CodeGroup>
+
+## Commit Guidelines
+
+<Card title="Commit Message Format" icon="message">
+  Use clear, imperative commit messages with conventional prefixes:
+  
+  - `feat:` - New features
+  - `fix:` - Bug fixes
+  - `docs:` - Documentation changes
+  - `test:` - Test additions or modifications
+  - `ci:` - CI/CD changes
+  - `chore:` - Maintenance tasks
+  - `perf:` - Performance improvements
+  - `refactor:` - Code refactoring
+</Card>
+
+### Examples
+
+```bash
+feat: add KMeans clustering estimator
+fix: correct StandardScaler variance calculation
+docs: update LinearRegression API reference
+test: add integration tests for RandomForest
+ci: add parity check workflow
+perf: optimize Zig tree split kernel
+```
+
+## Benchmark Policy
+
+<Warning>
+  **Important**: Benchmark table content in `README.md` is generated from `bench/results/heart-ci-latest.json`. Do not hand-edit the benchmark section in `README.md`.
+</Warning>
+
+<Steps>
+  <Step title="Run Benchmarks">
+    Execute benchmarks to generate snapshot data:
+    ```bash
+    bun run bench:snapshot
+    ```
+  </Step>
+  
+  <Step title="Sync README">
+    Regenerate the README benchmark section from the snapshot file:
+    ```bash
+    bun run bench:sync-readme
+    ```
+  </Step>
+  
+  <Step title="Verify Changes">
+    Check that benchmark content is in sync:
+    ```bash
+    bun run bench:readme:check
+    ```
+  </Step>
+</Steps>
+
+## Code Style
+
+<CardGroup cols={2}>
+  <Card title="TypeScript" icon="code">
+    - Use TypeScript for all new code
+    - Enable strict type checking
+    - Avoid `any` types where possible
+    - Document public APIs with JSDoc comments
+  </Card>
+  
+  <Card title="Formatting" icon="align-left">
+    - Follow existing code style
+    - Use 2 spaces for indentation
+    - Use meaningful variable names
+    - Keep functions focused and small
+  </Card>
+</CardGroup>
+
+## Testing Guidelines
+
+<Accordion title="Unit Tests">
+  Write unit tests for:
+  - New estimators and transformers
+  - Metrics and utilities
+  - Edge cases and error handling
+  - Parameter validation
+</Accordion>
+
+<Accordion title="Integration Tests">
+  Write integration tests for:
+  - End-to-end workflows
+  - Pipeline compositions
+  - Cross-validation scenarios
+  - Real dataset examples
+</Accordion>
+
+<Accordion title="Parity Tests">
+  For scikit-learn compatible APIs:
+  - Add fixtures to `test/fixtures/sklearn-snapshots.json`
+  - Run `scripts/generate-sklearn-fixtures.py` to generate reference outputs
+  - Ensure parity checks pass with `bun run parity:check`
+</Accordion>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="GitHub Discussions" icon="comments" href="https://github.com/Seyamalam/bun-scikit/discussions">
+    Ask questions and discuss ideas with the community
+  </Card>
+  
+  <Card title="GitHub Issues" icon="circle-exclamation" href="https://github.com/Seyamalam/bun-scikit/issues">
+    Report bugs or request features
+  </Card>
+  
+  <Card title="Documentation" icon="book" href="/introduction">
+    Read the full documentation
+  </Card>
+  
+  <Card title="Support" icon="life-ring" href="/resources/support">
+    View support and community resources
+  </Card>
+</CardGroup>
+
+<Tip>
+  First time contributing? Look for issues labeled `good first issue` or `help wanted` to get started!
+</Tip>

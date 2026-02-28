@@ -1,0 +1,244 @@
+---
+title: ColumnTransformer
+description: Apply different transformers to different columns
+---
+
+ColumnTransformer applies transformers to columns of an array or matrix.
+
+## Constructor
+
+```typescript
+import { ColumnTransformer } from 'scikitjs';
+
+const transformer = new ColumnTransformer(specs, options);
+```
+
+<ParamField path="specs" type="[string, transformer, columns][]" required>
+  List of (name, transformer, columns) tuples:
+  - name: string identifier
+  - transformer: transformer object, 'drop', or 'passthrough'
+  - columns: array of indices or {start, end} range
+</ParamField>
+
+<ParamField path="options.remainder" type="'drop' | 'passthrough'" default="'drop'">
+  Strategy for columns not specified in specs:
+  - `'drop'`: columns are dropped
+  - `'passthrough'`: columns are passed through unchanged
+</ParamField>
+
+## Methods
+
+### fit
+
+Fit all transformers.
+
+```typescript
+fit(X: number[][], y?: number[], sampleWeight?: number[]): ColumnTransformer
+```
+
+### transform
+
+Transform X separately by each transformer and concatenate results.
+
+```typescript
+transform(X: number[][]): number[][]
+```
+
+### fitTransform
+
+Fit all transformers and transform the data.
+
+```typescript
+fitTransform(X: number[][], y?: number[], sampleWeight?: number[]): number[][]
+```
+
+### getParams / setParams
+
+```typescript
+getParams(deep?: boolean): Record<string, unknown>
+setParams(params: Record<string, unknown>): ColumnTransformer
+```
+
+## Properties
+
+<ParamField path="transformers_" type="readonly [string, transformer, number[]][]">
+  The collection of fitted transformers as tuples
+</ParamField>
+
+<ParamField path="namedTransformers_" type="Record<string, transformer>">
+  Access transformers by name
+</ParamField>
+
+## Examples
+
+### Mixed Feature Types
+
+```typescript
+import {
+  ColumnTransformer,
+  StandardScaler,
+  OneHotEncoder
+} from 'scikitjs';
+
+// Dataset with numeric and categorical features
+const X = [
+  [0, 'a', 1.5],
+  [1, 'b', 2.0],
+  [2, 'a', 1.0],
+  [3, 'c', 3.5]
+];
+
+// Apply different transformers to different columns
+const ct = new ColumnTransformer([
+  ['num', new StandardScaler(), [0, 2]],  // Numeric columns
+  ['cat', new OneHotEncoder(), [1]]        // Categorical column
+]);
+
+const XTransformed = ct.fitTransform(X);
+console.log(XTransformed);
+```
+
+### Column Ranges
+
+```typescript
+import { ColumnTransformer, StandardScaler, MinMaxScaler } from 'scikitjs';
+
+const X = [
+  [1, 2, 3, 4, 5],
+  [2, 4, 6, 8, 10],
+  [3, 6, 9, 12, 15]
+];
+
+// Use range notation for columns
+const ct = new ColumnTransformer([
+  ['standard', new StandardScaler(), { start: 0, end: 3 }],
+  ['minmax', new MinMaxScaler(), { start: 3, end: 5 }]
+]);
+
+ct.fit(X);
+const XTransformed = ct.transform(X);
+```
+
+### Drop and Passthrough
+
+```typescript
+import { ColumnTransformer, StandardScaler } from 'scikitjs';
+
+const X = [
+  [1, 2, 3, 4],
+  [5, 6, 7, 8],
+  [9, 10, 11, 12]
+];
+
+// Scale some columns, drop others
+const ct = new ColumnTransformer([
+  ['scaler', new StandardScaler(), [0, 1]],
+  ['drop', 'drop', [2]]  // Drop column 2
+]);
+
+const XTransformed = ct.fitTransform(X);
+console.log(XTransformed.length);      // 3 rows
+console.log(XTransformed[0].length);   // 3 columns (dropped 1)
+```
+
+### Passthrough Remainder
+
+```typescript
+import { ColumnTransformer, StandardScaler } from 'scikitjs';
+
+const X = [
+  [1, 2, 3, 4],
+  [5, 6, 7, 8]
+];
+
+// Transform first 2 columns, keep others unchanged
+const ct = new ColumnTransformer(
+  [['scaler', new StandardScaler(), [0, 1]]],
+  { remainder: 'passthrough' }
+);
+
+const XTransformed = ct.fitTransform(X);
+console.log(XTransformed[0].length);  // 4 (scaled + passthrough)
+```
+
+### In a Pipeline
+
+```typescript
+import {
+  Pipeline,
+  ColumnTransformer,
+  StandardScaler,
+  PCA,
+  LogisticRegression
+} from 'scikitjs';
+
+const X = [
+  [1, 0, 0.5],
+  [2, 1, 1.5],
+  [3, 0, 2.5],
+  [4, 1, 3.5]
+];
+const y = [0, 0, 1, 1];
+
+// Preprocess different feature groups
+const preprocessor = new ColumnTransformer([
+  ['continuous', new StandardScaler(), [0, 2]],
+  ['binary', 'passthrough', [1]]
+]);
+
+const pipeline = new Pipeline([
+  ['preprocessor', preprocessor],
+  ['pca', new PCA({ nComponents: 2 })],
+  ['classifier', new LogisticRegression()]
+]);
+
+pipeline.fit(X, y);
+const predictions = pipeline.predict(X);
+```
+
+### Feature Engineering
+
+```typescript
+import {
+  ColumnTransformer,
+  StandardScaler,
+  PolynomialFeatures
+} from 'scikitjs';
+
+const X = [
+  [1, 2],
+  [3, 4],
+  [5, 6]
+];
+
+// Apply polynomial features to first column, scale second
+const ct = new ColumnTransformer([
+  ['poly', new PolynomialFeatures({ degree: 2 }), [0]],
+  ['scale', new StandardScaler(), [1]]
+]);
+
+const XTransformed = ct.fitTransform(X);
+console.log(XTransformed);
+// Each row: [1, x, x^2, scaled_y]
+```
+
+### Access Transformed Features
+
+```typescript
+const ct = new ColumnTransformer([
+  ['scaler', new StandardScaler(), [0, 1]],
+  ['keep', 'passthrough', [2]]
+]);
+
+ct.fit(X);
+
+// Access fitted transformers
+const scaler = ct.namedTransformers_['scaler'];
+console.log(scaler.mean_);
+console.log(scaler.scale_);
+
+// Inspect transformers
+for (const [name, transformer, columns] of ct.transformers_) {
+  console.log(`${name}: columns ${columns}`);
+}
+```

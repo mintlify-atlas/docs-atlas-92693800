@@ -1,0 +1,131 @@
+---
+title: MDS
+description: Multidimensional Scaling for distance-preserving dimensionality reduction
+---
+
+## Overview
+
+MDS (Multidimensional Scaling) finds a low-dimensional representation that preserves pairwise distances between points. It's useful for visualizing similarity/dissimilarity data.
+
+## Constructor
+
+```typescript
+new MDS(options?: MDSOptions)
+```
+
+<ParamField path="options" type="MDSOptions">
+  Configuration options for MDS
+  
+  <Expandable title="properties">
+    <ParamField path="nComponents" type="number" default="2" optional>
+      Number of dimensions in the embedding space.
+    </ParamField>
+    
+    <ParamField path="dissimilarity" type="'euclidean' | 'precomputed'" default="'euclidean'" optional>
+      Dissimilarity measure:
+      - `'euclidean'`: Compute Euclidean distances from input features
+      - `'precomputed'`: Input is a pre-computed distance matrix
+    </ParamField>
+    
+    <ParamField path="randomState" type="number" optional>
+      Seed for random number generator for reproducible results.
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="500" optional>
+      Maximum iterations for eigenvalue computation.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute the MDS embedding from data or distance matrix.
+
+<ParamField path="X" type="Matrix" required>
+  Input data of shape [nSamples, nFeatures] or distance matrix of shape [nSamples, nSamples] if dissimilarity='precomputed'
+</ParamField>
+
+**Returns:** The fitted MDS instance
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and return the embedding.
+
+<ParamField path="X" type="Matrix" required>
+  Input data of shape [nSamples, nFeatures] or distance matrix if dissimilarity='precomputed'
+</ParamField>
+
+**Returns:** Embedded data of shape [nSamples, nComponents]
+
+## Properties
+
+<ParamField path="embedding_" type="Matrix | null">
+  Embedded coordinates in low-dimensional space, shape [nSamples, nComponents]
+</ParamField>
+
+<ParamField path="stress_" type="number | null">
+  Sum of squared distances differences (stress value)
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit (or number of samples if precomputed)
+</ParamField>
+
+## Example
+
+```typescript
+import { MDS } from '@elucidate/elucidate';
+
+// Example 1: Using Euclidean distances
+const data = [
+  [1.0, 2.0],
+  [1.5, 2.5],
+  [3.0, 4.0],
+  [3.5, 4.5],
+  [5.0, 6.0],
+];
+
+const mds = new MDS({ 
+  nComponents: 2,
+  dissimilarity: 'euclidean',
+  randomState: 42 
+});
+
+const embedding = mds.fitTransform(data);
+console.log('Embedded coordinates:', embedding);
+console.log('Stress:', mds.stress_);
+
+// Example 2: Using pre-computed distance matrix
+const distanceMatrix = [
+  [0.0, 1.0, 5.0, 6.0, 10.0],
+  [1.0, 0.0, 4.0, 5.0, 9.0],
+  [5.0, 4.0, 0.0, 1.0, 5.0],
+  [6.0, 5.0, 1.0, 0.0, 4.0],
+  [10.0, 9.0, 5.0, 4.0, 0.0],
+];
+
+const mdsPrecomputed = new MDS({ 
+  nComponents: 2,
+  dissimilarity: 'precomputed' 
+});
+
+const embeddingFromDist = mdsPrecomputed.fitTransform(distanceMatrix);
+console.log('Embedding from distances:', embeddingFromDist);
+```
+
+## Notes
+
+- MDS uses classical scaling (eigendecomposition of double-centered distance matrix)
+- Works well when pairwise distances are meaningful
+- Pre-computed mode is useful for custom distance metrics
+- The embedding preserves inter-point distances as much as possible

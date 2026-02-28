@@ -1,0 +1,512 @@
+---
+title: "Performance Optimization Tips"
+description: "Best practices for maximizing bun-scikit performance in your applications"
+---
+
+## Overview
+
+This guide covers practical techniques to optimize bun-scikit performance for your specific use cases. From choosing the right backend to data preparation strategies, these tips will help you get the most out of native Zig acceleration.
+
+## Choose the Right Backend
+
+### Tree Models: Zig vs JavaScript
+
+bun-scikit offers both native Zig and optimized JavaScript backends for tree-based models.
+
+<Accordion title="When to Use Zig Backend (Default)">
+
+**Best for:**
+- Medium to large datasets (>1000 samples)
+- Deep trees (`maxDepth > 5`)
+- Random forests with many estimators (`nEstimators > 50`)
+- Production workloads prioritizing throughput
+
+**Performance characteristics:**
+- DecisionTree fit: 1.82x faster than JS
+- RandomForest fit: 2.65x faster than JS
+- RandomForest predict: 2.26x faster than JS
+
+**Enable (default):**
+```bash
+export BUN_SCIKIT_TREE_BACKEND=zig
+```
+
+</Accordion>
+
+<Accordion title="When to Use JavaScript Backend">
+
+**Best for:**
+- Small datasets (&lt;500 samples)
+- Shallow trees (`maxDepth` ≤ 3)
+- Single decision trees (lower overhead)
+- Development without building native code
+
+**Performance characteristics:**
+- DecisionTree predict: 1.6x faster than Zig on small data
+- Lower FFI overhead for simple models
+- Faster startup time
+
+**Enable:**
+```bash
+export BUN_SCIKIT_TREE_BACKEND=js
+```
+
+</Accordion>
+
+<Note>
+Benchmark both backends with your specific data. The optimal choice depends on dataset size, tree depth, and whether you're optimizing for training or inference.
+</Note>
+
+### Linear Models: Native Required
+
+`LinearRegression` and `LogisticRegression` **require** native Zig kernels:
+
+```typescript
+import { LinearRegression, LogisticRegression } from "bun-scikit";
+
+// Both require native kernels
+const linear = new LinearRegression({ solver: "normal" });
+const logistic = new LogisticRegression({ solver: "gd" });
+
+linear.fit(X, y);  // Throws if kernels unavailable
+```
+
+<Warning>
+If native kernels are missing, these models will throw an error during `fit()`. Run `bun run native:build` to compile kernels locally.
+</Warning>
+
+## Data Preparation
+
+### Use Typed Arrays
+
+Native kernels work directly with typed arrays for zero-copy data transfer:
+
+```typescript
+// Good: Native typed arrays
+const X = new Float64Array([1.0, 2.0, 3.0, 4.0]);
+const y = new Float64Array([2.0, 4.0, 6.0, 8.0]);
+
+// Avoid: Regular arrays (require conversion)
+const X = [[1.0], [2.0], [3.0], [4.0]];
+const y = [2.0, 4.0, 6.0, 8.0];
+```
+
+<Note>
+bun-scikit automatically converts regular arrays to typed arrays when needed, but pre-converting your data eliminates this overhead.
+</Note>
+
+### Contiguous Memory Layout
+
+Ensure data is contiguous for optimal native performance:
+
+```typescript
+// Contiguous row-major layout (optimal)
+const X = new Float64Array([
+  1.0, 2.0,  // sample 0
+  3.0, 4.0,  // sample 1
+  5.0, 6.0,  // sample 2
+]);
+
+// Access pattern: X[row * n_features + col]
+```
+
+### Batch Predictions
+
+Predict on multiple samples at once to amortize overhead:
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+const forest = new RandomForestClassifier();
+forest.fit(XTrain, yTrain);
+
+// Good: Batch prediction
+const predictions = forest.predict(XTest); // All test samples
+
+// Avoid: Individual predictions in loop
+const predictions = [];
+for (let i = 0; i < XTest.length; i++) {
+  predictions.push(forest.predict([XTest[i]])); // Repeated overhead
+}
+```
+
+## Model Configuration
+
+### Random Forests: Tune Estimators
+
+Balance accuracy and speed by adjusting `nEstimators`:
+
+<Accordion title="Small Datasets (<1000 samples)">
+
+```typescript
+const forest = new RandomForestClassifier({
+  nEstimators: 50,  // Sufficient for small data
+  maxDepth: 8,
+  randomState: 42,
+});
+```
+
+- 50 estimators provide good accuracy
+- Training time: ~15-30ms
+- Diminishing returns beyond 100 estimators
+
+</Accordion>
+
+<Accordion title="Medium Datasets (1000-10000 samples)">
+
+```typescript
+const forest = new RandomForestClassifier({
+  nEstimators: 100,  // Better accuracy, acceptable speed
+  maxDepth: 10,
+  randomState: 42,
+});
+```
+
+- 100 estimators balance accuracy and speed
+- Training time: ~50-200ms
+- Consider parallel processing for larger values
+
+</Accordion>
+
+<Accordion title="Large Datasets (>10000 samples)">
+
+```typescript
+const forest = new RandomForestClassifier({
+  nEstimators: 200,  // Maximum accuracy
+  maxDepth: 15,
+  randomState: 42,
+  nJobs: -1,  // Use all cores
+});
+```
+
+- 200+ estimators for maximum accuracy
+- Native Zig backend essential (6.4x speedup)
+- Training time: varies widely by data size
+
+</Accordion>
+
+### Decision Trees: Limit Depth
+
+Control tree complexity to prevent overfitting and improve speed:
+
+```typescript
+const tree = new DecisionTreeClassifier({
+  maxDepth: 8,  // Reasonable default
+  minSamplesSplit: 10,  // Prevent tiny splits
+  minSamplesLeaf: 5,    // Ensure leaf stability
+});
+```
+
+**Depth vs Performance:**
+- `maxDepth: 5` - Very fast, risk underfitting
+- `maxDepth: 8` - Good balance (recommended)
+- `maxDepth: 15` - High accuracy, slower, risk overfitting
+- `maxDepth: null` - Unlimited (use with caution)
+
+### Logistic Regression: Solver Selection
+
+Choose the appropriate solver for your data:
+
+```typescript
+// Gradient descent (native Zig, good for large data)
+const logistic = new LogisticRegression({
+  solver: "gd",
+  learningRate: 0.8,
+  maxIter: 100,
+  tolerance: 1e-5,
+});
+
+// L-BFGS (good for small to medium data)
+const logistic = new LogisticRegression({
+  solver: "lbfgs",
+  maxIter: 100,
+});
+```
+
+<Note>
+Native Zig gradient descent (`solver: "gd"`) provides 2.5x speedup over Python scikit-learn. Use for datasets with >1000 samples.
+</Note>
+
+## Preprocessing Optimization
+
+### Reuse Scalers
+
+Fit scalers once, transform multiple times:
+
+```typescript
+import { StandardScaler } from "bun-scikit";
+
+// Fit once on training data
+const scaler = new StandardScaler();
+scaler.fit(XTrain);
+
+// Transform multiple datasets
+const XTrainScaled = scaler.transform(XTrain);
+const XTestScaled = scaler.transform(XTest);
+const XNewScaled = scaler.transform(XNew);
+
+// Avoid: Refitting scaler repeatedly
+// const XTestScaled = new StandardScaler().fitTransform(XTest); // Wrong!
+```
+
+### Pipeline for Efficiency
+
+Combine preprocessing and modeling in pipelines:
+
+```typescript
+import { Pipeline, StandardScaler, LogisticRegression } from "bun-scikit";
+
+const pipeline = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["classifier", new LogisticRegression({ solver: "gd" })],
+]);
+
+// Single fit call handles both steps
+pipeline.fit(XTrain, yTrain);
+const predictions = pipeline.predict(XTest);
+```
+
+**Benefits:**
+- Automatic data flow between steps
+- No intermediate array allocations
+- Cleaner code, fewer errors
+
+## Memory Management
+
+### Avoid Memory Leaks
+
+Models with native handles are automatically cleaned up, but be aware of lifecycle:
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+function trainModel(X, y) {
+  const model = new LinearRegression({ solver: "normal" });
+  model.fit(X, y);
+  return model;
+}  // Model handle still valid
+
+const model = trainModel(X, y);
+// Use model...
+// When done, model is garbage collected and native handle destroyed
+```
+
+<Warning>
+Don't manually manage model handles. bun-scikit automatically calls `*_model_destroy()` when models are garbage collected.
+</Warning>
+
+### Large Dataset Strategies
+
+For datasets that strain memory:
+
+<Accordion title="Use Incremental Learning">
+
+```typescript
+import { SGDClassifier } from "bun-scikit";
+
+const model = new SGDClassifier();
+
+// Process data in chunks
+for (const [XChunk, yChunk] of dataBatches) {
+  model.partialFit(XChunk, yChunk);
+}
+```
+
+Models supporting `partialFit`:
+- `SGDClassifier`
+- `SGDRegressor`
+
+</Accordion>
+
+<Accordion title="Subsample for Prototyping">
+
+```typescript
+import { trainTestSplit } from "bun-scikit";
+
+// Work with subset during development
+const { XSample, ySample } = trainTestSplit(X, y, {
+  testSize: 0.9,  // Keep only 10% for quick iteration
+  randomState: 42,
+});
+
+model.fit(XSample, ySample);
+```
+
+</Accordion>
+
+## Benchmarking Your Code
+
+### Measure What Matters
+
+Use precise timing for optimization decisions:
+
+```typescript
+const start = performance.now();
+model.fit(XTrain, yTrain);
+const fitTime = performance.now() - start;
+
+console.log(`Fit time: ${fitTime.toFixed(2)}ms`);
+
+const predStart = performance.now();
+const predictions = model.predict(XTest);
+const predTime = performance.now() - predStart;
+
+console.log(`Predict time: ${predTime.toFixed(2)}ms`);
+```
+
+### Compare Backends
+
+Test both Zig and JS backends with your data:
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+// Test Zig backend
+process.env.BUN_SCIKIT_TREE_BACKEND = "zig";
+const forestZig = new RandomForestClassifier({ nEstimators: 80, maxDepth: 8 });
+const zigStart = performance.now();
+forestZig.fit(XTrain, yTrain);
+const zigTime = performance.now() - zigStart;
+
+// Test JS backend
+process.env.BUN_SCIKIT_TREE_BACKEND = "js";
+const forestJS = new RandomForestClassifier({ nEstimators: 80, maxDepth: 8 });
+const jsStart = performance.now();
+forestJS.fit(XTrain, yTrain);
+const jsTime = performance.now() - jsStart;
+
+console.log(`Zig: ${zigTime.toFixed(2)}ms, JS: ${jsTime.toFixed(2)}ms`);
+console.log(`Speedup: ${(jsTime / zigTime).toFixed(2)}x`);
+```
+
+### Run Official Benchmarks
+
+Compare your results against CI benchmarks:
+
+```bash
+# Full benchmark suite
+bun run bench
+
+# Hot-path synthetic benchmarks
+bun run bench:hotpaths
+
+# Against Python scikit-learn
+bun run bench:ci
+```
+
+## Production Deployment
+
+### Verify Native Acceleration
+
+Confirm native kernels are active in production:
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const tree = new DecisionTreeClassifier();
+tree.fit(X, y);
+
+if (tree.fitBackend_ !== "zig") {
+  console.warn("Native acceleration not active!");
+  console.warn("Expected: zig, Got:", tree.fitBackend_);
+}
+
+console.log("Native library:", tree.fitBackendLibrary_);
+```
+
+### Environment Configuration
+
+Optimal production settings:
+
+```bash
+# Use Zig backend (default, but explicit is better)
+export BUN_SCIKIT_TREE_BACKEND=zig
+
+# Let runtime choose best bridge (default)
+# export BUN_SCIKIT_NATIVE_BRIDGE=node-api  # Only if needed
+
+# Don't disable Zig in production
+# export BUN_SCIKIT_ENABLE_ZIG=0  # Development only
+```
+
+### Model Serialization
+
+Save trained models to avoid refitting:
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+import { writeFileSync, readFileSync } from "fs";
+
+// Train once
+const forest = new RandomForestClassifier();
+forest.fit(XTrain, yTrain);
+
+// Save model (serialize parameters)
+const modelData = {
+  params: forest.getParams(),
+  // Save internal state as needed
+};
+writeFileSync("model.json", JSON.stringify(modelData));
+
+// Load model later
+const loaded = JSON.parse(readFileSync("model.json", "utf-8"));
+const restoredForest = new RandomForestClassifier(loaded.params);
+// Restore state...
+```
+
+<Note>
+Model serialization APIs are under development. Current approach requires manual state management.
+</Note>
+
+## Performance Checklist
+
+<Accordion title="Data Preparation">
+
+- [ ] Use `Float64Array` for features and targets
+- [ ] Ensure contiguous memory layout
+- [ ] Batch predictions instead of looping
+- [ ] Reuse fitted scalers for multiple transforms
+- [ ] Consider pipelines for multi-step workflows
+
+</Accordion>
+
+<Accordion title="Model Configuration">
+
+- [ ] Choose appropriate `nEstimators` for dataset size
+- [ ] Set reasonable `maxDepth` to prevent overfitting
+- [ ] Use native Zig backend for medium/large data
+- [ ] Select optimal solver for linear models
+- [ ] Tune hyperparameters with cross-validation
+
+</Accordion>
+
+<Accordion title="Runtime Environment">
+
+- [ ] Verify native kernels are active (`fitBackend_`)
+- [ ] Use prebuilt binaries (Linux/Windows)
+- [ ] Build locally on macOS (`bun run native:build`)
+- [ ] Set `BUN_SCIKIT_TREE_BACKEND=zig` explicitly
+- [ ] Benchmark both backends with your data
+
+</Accordion>
+
+<Accordion title="Production Deployment">
+
+- [ ] Confirm native acceleration in production logs
+- [ ] Use appropriate environment variables
+- [ ] Monitor fit/predict times
+- [ ] Cache trained models when possible
+- [ ] Test performance regression in CI
+
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Benchmarks" icon="chart-line" href="/performance/benchmarks">
+    Review detailed performance comparisons
+  </Card>
+  <Card title="Native Runtime" icon="bolt" href="/performance/native-runtime">
+    Deep dive into Zig acceleration
+  </Card>
+</CardGroup>

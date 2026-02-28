@@ -1,0 +1,199 @@
+---
+title: Clustering Metrics
+description: Metrics for evaluating clustering algorithms
+---
+
+Clustering metrics for evaluating unsupervised learning algorithms.
+
+## silhouetteScore
+
+Silhouette coefficient - measures how similar an object is to its own cluster compared to other clusters.
+
+```typescript
+import { silhouetteScore } from 'scikitjs';
+
+function silhouetteScore(
+  X: number[][],
+  labels: number[]
+): number;
+```
+
+<ParamField path="X" type="number[][]" required>
+  Feature matrix (samples × features)
+</ParamField>
+
+<ParamField path="labels" type="number[]" required>
+  Cluster labels for each sample
+</ParamField>
+
+### Returns
+
+Mean silhouette coefficient over all samples. Values range from -1 to 1:
+- 1: clusters are well separated
+- 0: clusters are overlapping
+- -1: samples may be assigned to wrong clusters
+
+### Example
+
+```typescript
+import { KMeans, silhouetteScore } from 'scikitjs';
+
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8],
+  [8, 8], [1, 0.6], [9, 11]
+];
+
+const kmeans = new KMeans({ nClusters: 2 });
+kmeans.fit(X);
+const labels = kmeans.labels_;
+
+const score = silhouetteScore(X, labels);
+console.log(score); // 0.55
+```
+
+## calinskiHarabaszScore
+
+Calinski-Harabasz index (Variance Ratio Criterion) - ratio of between-cluster to within-cluster dispersion.
+
+```typescript
+function calinskiHarabaszScore(
+  X: number[][],
+  labels: number[]
+): number;
+```
+
+<ParamField path="X" type="number[][]" required>
+  Feature matrix
+</ParamField>
+
+<ParamField path="labels" type="number[]" required>
+  Cluster labels for each sample
+</ParamField>
+
+### Returns
+
+Calinski-Harabasz score. Higher values indicate better defined clusters.
+
+### Example
+
+```typescript
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8],
+  [8, 8], [1, 0.6], [9, 11]
+];
+const labels = [0, 0, 1, 1, 0, 1];
+
+const score = calinskiHarabaszScore(X, labels);
+console.log(score); // 31.02
+```
+
+## daviesBouldinScore
+
+Davies-Bouldin index - average similarity measure of each cluster with its most similar cluster.
+
+```typescript
+function daviesBouldinScore(
+  X: number[][],
+  labels: number[]
+): number;
+```
+
+<ParamField path="X" type="number[][]" required>
+  Feature matrix
+</ParamField>
+
+<ParamField path="labels" type="number[]" required>
+  Cluster labels for each sample
+</ParamField>
+
+### Returns
+
+Davies-Bouldin score. Lower values indicate better clustering (minimum score is 0).
+
+### Example
+
+```typescript
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8],
+  [8, 8], [1, 0.6], [9, 11]
+];
+const labels = [0, 0, 1, 1, 0, 1];
+
+const score = daviesBouldinScore(X, labels);
+console.log(score); // 0.894
+```
+
+## adjustedRandScore
+
+Adjusted Rand Index - measures similarity between two clusterings, adjusted for chance.
+
+```typescript
+function adjustedRandScore(
+  labelsTrue: number[],
+  labelsPred: number[]
+): number;
+```
+
+<ParamField path="labelsTrue" type="number[]" required>
+  Ground truth cluster labels
+</ParamField>
+
+<ParamField path="labelsPred" type="number[]" required>
+  Predicted cluster labels
+</ParamField>
+
+### Returns
+
+Adjusted Rand Index. Values range from -1 to 1:
+- 1: perfect match
+- 0: random labeling
+- Negative: worse than random
+
+### Example
+
+```typescript
+const labelsTrue = [0, 0, 1, 1, 1, 1];
+const labelsPred = [0, 0, 1, 1, 2, 2];
+
+const ari = adjustedRandScore(labelsTrue, labelsPred);
+console.log(ari); // 0.242
+```
+
+## Comparing Multiple Clusterings
+
+```typescript
+import {
+  KMeans,
+  DBSCAN,
+  silhouetteScore,
+  calinskiHarabaszScore,
+  daviesBouldinScore
+} from 'scikitjs';
+
+const X = [
+  [1, 2], [1.5, 1.8], [5, 8],
+  [8, 8], [1, 0.6], [9, 11],
+  [8, 2], [10, 2], [9, 3]
+];
+
+// KMeans clustering
+const kmeans = new KMeans({ nClusters: 2 });
+kmeans.fit(X);
+const kmeansLabels = kmeans.labels_;
+
+// DBSCAN clustering
+const dbscan = new DBSCAN({ eps: 3, minSamples: 2 });
+dbscan.fit(X);
+const dbscanLabels = dbscan.labels_;
+
+// Compare clusterings
+console.log('KMeans Metrics:');
+console.log('  Silhouette:', silhouetteScore(X, kmeansLabels));
+console.log('  Calinski-Harabasz:', calinskiHarabaszScore(X, kmeansLabels));
+console.log('  Davies-Bouldin:', daviesBouldinScore(X, kmeansLabels));
+
+console.log('\nDBSCAN Metrics:');
+console.log('  Silhouette:', silhouetteScore(X, dbscanLabels));
+console.log('  Calinski-Harabasz:', calinskiHarabaszScore(X, dbscanLabels));
+console.log('  Davies-Bouldin:', daviesBouldinScore(X, dbscanLabels));
+```

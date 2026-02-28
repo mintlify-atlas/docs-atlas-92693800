@@ -1,0 +1,151 @@
+---
+title: Normalizer
+description: Normalize samples individually to unit norm
+---
+
+## Overview
+
+Normalizer scales individual samples to have unit norm. This is different from other scalers which operate on features (columns). Each sample (row) is normalized independently.
+
+## Constructor
+
+```typescript
+new Normalizer(options?: NormalizerOptions)
+```
+
+<ParamField path="options.norm" type="'l1' | 'l2' | 'max'" default="'l2'">
+  The norm to use to normalize each non-zero sample:
+  - `'l1'`: Sum of absolute values equals 1
+  - `'l2'`: Sum of squares equals 1 (Euclidean norm)
+  - `'max'`: Maximum absolute value equals 1
+</ParamField>
+
+## Properties
+
+<ParamField path="nFeatures_" type="number | null">
+  Number of features seen during fit.
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Fit the normalizer. This method only records the number of features for validation.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix.
+</ParamField>
+
+**Returns:** `this` - The fitted normalizer instance.
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Scale each sample to unit norm.
+
+<ParamField path="X" type="Matrix" required>
+  Data matrix to normalize. Each row will be normalized independently.
+</ParamField>
+
+**Returns:** `Matrix` - Normalized data where each row has unit norm.
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit to data, then transform it. Equivalent to calling `fit(X).transform(X)`.
+
+<ParamField path="X" type="Matrix" required>
+  Training data matrix to fit and normalize.
+</ParamField>
+
+**Returns:** `Matrix` - Normalized data.
+
+## Example
+
+```typescript
+import { Normalizer } from 'bun-scikit';
+
+const X = [
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9]
+];
+
+// L2 normalization (default)
+const normL2 = new Normalizer({ norm: 'l2' });
+const XL2 = normL2.fitTransform(X);
+console.log('L2 normalized:', XL2);
+// Each row has Euclidean norm of 1
+// Row 0: [0.267, 0.534, 0.802]
+
+// L1 normalization
+const normL1 = new Normalizer({ norm: 'l1' });
+const XL1 = normL1.fitTransform(X);
+console.log('L1 normalized:', XL1);
+// Each row sums to 1
+// Row 0: [1/6, 2/6, 3/6] = [0.167, 0.333, 0.5]
+
+// Max normalization
+const normMax = new Normalizer({ norm: 'max' });
+const XMax = normMax.fitTransform(X);
+console.log('Max normalized:', XMax);
+// Each row's max absolute value is 1
+// Row 0: [1/3, 2/3, 1] = [0.333, 0.667, 1]
+```
+
+## Example: Text Feature Vectors
+
+```typescript
+import { Normalizer } from 'bun-scikit';
+
+// Term frequency vectors for documents
+const termFrequencies = [
+  [3, 0, 1],  // Document 1: 3x term1, 0x term2, 1x term3
+  [2, 0, 0],  // Document 2: 2x term1, 0x term2, 0x term3
+  [3, 0, 0],  // Document 3: 3x term1, 0x term2, 0x term3
+];
+
+// Normalize to unit length for similarity comparison
+const normalizer = new Normalizer({ norm: 'l2' });
+const normalized = normalizer.fitTransform(termFrequencies);
+
+console.log('Normalized TF vectors:', normalized);
+// Now we can compute cosine similarity by dot product
+```
+
+## Example: Zero-Norm Rows
+
+```typescript
+import { Normalizer } from 'bun-scikit';
+
+const X = [
+  [1, 2, 3],
+  [0, 0, 0],  // Zero vector - cannot be normalized
+  [4, 5, 6]
+];
+
+const normalizer = new Normalizer();
+const XNorm = normalizer.fitTransform(X);
+
+console.log('Normalized:', XNorm);
+// Row with all zeros remains unchanged
+// [[0.267, 0.534, 0.802], [0, 0, 0], [0.456, 0.570, 0.684]]
+```
+
+## Notes
+
+- Normalization is performed row-wise (per sample), not column-wise (per feature)
+- Rows with zero norm remain unchanged (all zeros)
+- Unlike other scalers, the fit step doesn't compute statistics - it only validates the data
+- Commonly used in text classification and clustering
+- Input data must be finite (no NaN or Infinity values)

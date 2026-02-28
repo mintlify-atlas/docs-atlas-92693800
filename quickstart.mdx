@@ -1,80 +1,222 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Train your first machine learning model with bun-scikit in under 5 minutes
 ---
 
-## Get started in three steps
+Get up and running with bun-scikit by training your first models. This guide covers regression, classification, and decision trees with native Zig acceleration.
 
-Get your documentation site running locally and make your first customization.
+## Linear regression
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Import libraries">
+    Import the essential components for regression.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```typescript
+    import {
+      LinearRegression,
+      StandardScaler,
+      trainTestSplit,
+      meanSquaredError
+    } from "bun-scikit";
+    ```
+  </Step>
+
+  <Step title="Prepare your data">
+    Create sample data and split it for training and testing.
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```typescript
+    const X = [[1], [2], [3], [4], [5], [6]];
+    const y = [3, 5, 7, 9, 11, 13];
 
-### Step 2: Deploy your changes
+    const scaler = new StandardScaler();
+    const XScaled = scaler.fitTransform(X);
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    const { XTrain, XTest, yTrain, yTest } = trainTestSplit(XScaled, y, {
+      testSize: 0.33,
+      randomState: 42
+    });
+    ```
+  </Step>
+
+  <Step title="Train and evaluate">
+    Fit the model and make predictions.
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```typescript
+    const model = new LinearRegression({ solver: "normal" });
+    model.fit(XTrain, yTrain);
+    
+    const predictions = model.predict(XTest);
+    const mse = meanSquaredError(yTest, predictions);
+    
+    console.log("MSE:", mse);
+    console.log("Coefficients:", model.coef_);
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Classification
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Import libraries">
+    ```typescript
+    import {
+      LogisticRegression,
+      StandardScaler,
+      accuracyScore
+    } from "bun-scikit";
+    ```
+  </Step>
 
-### Step 3: Go live
+  <Step title="Prepare classification data">
+    ```typescript
+    const X = [[1], [2], [3], [4], [5], [6]];
+    const y = [0, 0, 0, 1, 1, 1];
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    const scaler = new StandardScaler();
+    const XScaled = scaler.fitTransform(X);
+    ```
+  </Step>
+
+  <Step title="Train classifier">
+    ```typescript
+    const classifier = new LogisticRegression({
+      solver: "gd",
+      learningRate: 0.8,
+      maxIter: 100,
+      tolerance: 1e-5
+    });
+    
+    classifier.fit(XScaled, y);
+    const predictions = classifier.predict(XScaled);
+    const accuracy = accuracyScore(y, predictions);
+    
+    console.log("Accuracy:", accuracy);
+    console.log("Predicted probabilities:", classifier.predictProba(XScaled));
+    ```
+  </Step>
+</Steps>
+
+## Decision trees with Zig acceleration
+
+Train a decision tree using native Zig backend for maximum performance.
+
+```typescript
+import { DecisionTreeClassifier } from "bun-scikit";
+
+const X = [
+  [0, 0],
+  [0, 1],
+  [1, 0],
+  [2, 2],
+  [2, 3],
+  [3, 2]
+];
+const y = [0, 0, 0, 1, 1, 1];
+
+const tree = new DecisionTreeClassifier({ 
+  maxDepth: 3, 
+  randomState: 42 
+});
+
+tree.fit(X, y);
+
+// Check backend (should be "zig" on Linux/Windows)
+console.log("Fit backend:", tree.fitBackend_);
+console.log("Backend library:", tree.fitBackendLibrary_);
+
+// Make predictions
+const predictions = tree.predict([[1, 1], [3, 3]]);
+console.log("Predictions:", predictions); // [0, 1]
+```
+
+<Note>
+The Zig backend provides 2-6x faster training compared to scikit-learn on Linux and Windows. See [Performance Benchmarks](/performance/benchmarks) for detailed comparisons.
+</Note>
+
+## Random forest ensemble
+
+Random forests combine multiple decision trees for improved accuracy.
+
+```typescript
+import { RandomForestClassifier } from "bun-scikit";
+
+const forest = new RandomForestClassifier({ 
+  nEstimators: 25, 
+  maxDepth: 4, 
+  randomState: 42 
+});
+
+forest.fit(X, y);
+
+console.log("Fit backend:", forest.fitBackend_);
+const predictions = forest.predict([[1, 1], [3, 3]]);
+console.log("Forest predictions:", predictions);
+```
+
+## Complete example
+
+Here's a full workflow combining preprocessing, training, and evaluation:
+
+```typescript
+import {
+  LinearRegression,
+  LogisticRegression,
+  StandardScaler,
+  trainTestSplit,
+  meanSquaredError,
+  accuracyScore
+} from "bun-scikit";
+
+// Regression workflow
+const XReg = [[1], [2], [3], [4], [5], [6]];
+const yReg = [3, 5, 7, 9, 11, 13];
+
+const scaler = new StandardScaler();
+const XScaled = scaler.fitTransform(XReg);
+
+const { XTrain, XTest, yTrain, yTest } = trainTestSplit(XScaled, yReg, {
+  testSize: 0.33,
+  randomState: 42
+});
+
+const regressor = new LinearRegression({ solver: "normal" });
+regressor.fit(XTrain, yTrain);
+console.log("Regression MSE:", meanSquaredError(yTest, regressor.predict(XTest)));
+
+// Classification workflow
+const yCls = [0, 0, 0, 1, 1, 1];
+const classifier = new LogisticRegression({
+  solver: "gd",
+  learningRate: 0.8,
+  maxIter: 100,
+  tolerance: 1e-5
+});
+
+classifier.fit(XScaled, yCls);
+console.log("Classification accuracy:", accuracyScore(yCls, classifier.predict(XScaled)));
+```
+
+## Run your code
+
+Save your code to `train.ts` and run:
+
+```bash
+bun run train.ts
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Core Concepts" icon="book" href="/concepts/preprocessing">
+    Learn about preprocessing, pipelines, and model evaluation
+  </Card>
+  <Card title="Guides" icon="map" href="/guides/linear-models">
+    Explore in-depth guides for different algorithms
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/linear-models/linear-regression">
+    Browse the complete API documentation
+  </Card>
+  <Card title="Performance" icon="gauge-high" href="/performance/benchmarks">
+    See benchmark comparisons vs scikit-learn
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

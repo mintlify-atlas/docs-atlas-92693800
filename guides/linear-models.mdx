@@ -1,0 +1,393 @@
+---
+title: "Linear Models"
+description: "Complete guide to linear and logistic regression in bun-scikit"
+---
+
+## Overview
+
+Linear models are supervised learning algorithms that model the relationship between features and targets using linear combinations. bun-scikit provides several linear model implementations with native Zig acceleration for optimal performance.
+
+<CardGroup cols={2}>
+  <Card title="LinearRegression" icon="chart-line" href="#linear-regression">
+    Ordinary least squares regression
+  </Card>
+  <Card title="Ridge" icon="mountain" href="#ridge-regression">
+    L2-regularized regression
+  </Card>
+  <Card title="Lasso" icon="scissors" href="#lasso-regression">
+    L1-regularized regression with feature selection
+  </Card>
+  <Card title="LogisticRegression" icon="binary" href="#logistic-regression">
+    Binary and multiclass classification
+  </Card>
+</CardGroup>
+
+## Linear Regression
+
+Ordinary least squares regression fits a linear model by minimizing the residual sum of squares.
+
+### Basic Usage
+
+```typescript
+import { LinearRegression } from "bun-scikit";
+
+const X = [[1], [2], [3], [4], [5]];
+const y = [3, 5, 7, 9, 11]; // y = 2x + 1
+
+const model = new LinearRegression({ solver: "normal" });
+model.fit(X, y);
+
+console.log(model.coef_); // [2.0]
+console.log(model.intercept_); // 1.0
+
+// Make predictions
+const predictions = model.predict([[6], [7]]);
+console.log(predictions); // [13.0, 15.0]
+```
+
+### Configuration Options
+
+<ParamField path="fitIntercept" type="boolean" default="true">
+  Whether to calculate the intercept for this model
+</ParamField>
+
+<ParamField path="solver" type="'normal'" default="'normal'">
+  Solver algorithm (currently only 'normal' equation is supported)
+</ParamField>
+
+### Attributes
+
+After fitting, the model exposes these attributes:
+
+- `coef_`: Vector of coefficients for each feature
+- `intercept_`: Intercept term
+- `fitBackend_`: Backend used for training ("zig")
+- `fitBackendLibrary_`: Path to native library
+
+### Model Evaluation
+
+```typescript
+// Compute R² score
+const score = model.score(X, y);
+console.log(score); // 1.0 for perfect fit
+```
+
+<Note>
+  LinearRegression requires native Zig kernels. Build them with `bun run native:build` before using.
+</Note>
+
+## Ridge Regression
+
+Ridge regression adds L2 regularization to prevent overfitting by penalizing large coefficients.
+
+### Basic Usage
+
+```typescript
+import { Ridge } from "bun-scikit";
+
+const X = [
+  [0.1, 0.2],
+  [0.3, 0.4],
+  [0.5, 0.6],
+  [0.7, 0.8],
+];
+const y = [1.1, 2.3, 3.5, 4.7];
+
+const ridge = new Ridge({ alpha: 1.0, fitIntercept: true });
+ridge.fit(X, y);
+
+const predictions = ridge.predict([[0.9, 1.0]]);
+console.log(predictions);
+```
+
+### Configuration
+
+<ParamField path="alpha" type="number" default="1.0">
+  Regularization strength. Must be a positive float. Larger values specify stronger regularization.
+</ParamField>
+
+<ParamField path="fitIntercept" type="boolean" default="true">
+  Whether to calculate the intercept
+</ParamField>
+
+### Cross-Validated Ridge
+
+Use `RidgeCV` to automatically select the best alpha:
+
+```typescript
+import { RidgeCV } from "bun-scikit";
+
+const ridgeCV = new RidgeCV({
+  alphas: [0.1, 1.0, 10.0],
+  fitIntercept: true,
+});
+ridgeCV.fit(X, y);
+
+console.log(ridgeCV.alpha_); // Best alpha selected
+```
+
+## Lasso Regression
+
+Lasso uses L1 regularization, which can drive some coefficients to exactly zero, performing feature selection.
+
+### Basic Usage
+
+```typescript
+import { Lasso } from "bun-scikit";
+
+const X = [
+  [1, 2, 3],
+  [4, 5, 6],
+  [7, 8, 9],
+  [10, 11, 12],
+];
+const y = [10, 20, 30, 40];
+
+const lasso = new Lasso({
+  alpha: 0.1,
+  maxIter: 1000,
+  tolerance: 1e-4,
+});
+lasso.fit(X, y);
+
+console.log(lasso.coef_);
+console.log(lasso.nIter_); // Number of iterations run
+```
+
+### Configuration
+
+<ParamField path="alpha" type="number" default="1.0">
+  Regularization strength
+</ParamField>
+
+<ParamField path="maxIter" type="number" default="1000">
+  Maximum number of coordinate descent iterations
+</ParamField>
+
+<ParamField path="tolerance" type="number" default="1e-4">
+  Convergence tolerance
+</ParamField>
+
+### Feature Selection
+
+Lasso automatically performs feature selection by setting coefficients to zero:
+
+```typescript
+lasso.fit(X, y);
+
+// Find selected features (non-zero coefficients)
+const selectedFeatures = lasso.coef_
+  .map((coef, idx) => ({ idx, coef }))
+  .filter(({ coef }) => Math.abs(coef) > 1e-10);
+
+console.log(`Selected ${selectedFeatures.length} features`);
+```
+
+## Logistic Regression
+
+Logistic regression is used for binary and multiclass classification problems.
+
+### Binary Classification
+
+```typescript
+import { LogisticRegression } from "bun-scikit";
+
+const X = [
+  [0, 0],
+  [1, 1],
+  [2, 2],
+  [3, 3],
+];
+const y = [0, 0, 1, 1];
+
+const logistic = new LogisticRegression({
+  solver: "gd",
+  learningRate: 0.1,
+  maxIter: 20000,
+});
+logistic.fit(X, y);
+
+// Predict classes
+const predictions = logistic.predict([[1.5, 1.5]]);
+console.log(predictions); // [0] or [1]
+
+// Get probabilities
+const probabilities = logistic.predictProba([[1.5, 1.5]]);
+console.log(probabilities); // [[0.7, 0.3]]
+```
+
+### Multiclass Classification
+
+Logistic regression automatically handles multiclass problems using one-vs-rest:
+
+```typescript
+const X = [
+  [0, 0], [0.5, 0.5], // class 0
+  [5, 5], [5.5, 5.5], // class 1
+  [10, 10], [10.5, 10.5], // class 2
+];
+const y = [0, 0, 1, 1, 2, 2];
+
+const multiclass = new LogisticRegression();
+multiclass.fit(X, y);
+
+console.log(multiclass.classes_); // [0, 1, 2]
+
+// Predict with probabilities for all classes
+const proba = multiclass.predictProba([[5.2, 5.2]]);
+console.log(proba); // [[0.1, 0.8, 0.1]]
+```
+
+### Configuration
+
+<ParamField path="solver" type="'gd' | 'lbfgs'" default="'gd'">
+  Optimization algorithm. 'gd' for gradient descent, 'lbfgs' for L-BFGS
+</ParamField>
+
+<ParamField path="learningRate" type="number" default="0.1">
+  Learning rate for gradient descent
+</ParamField>
+
+<ParamField path="maxIter" type="number" default="20000">
+  Maximum number of iterations
+</ParamField>
+
+<ParamField path="l2" type="number" default="0">
+  L2 regularization strength
+</ParamField>
+
+<ParamField path="tolerance" type="number" default="1e-8">
+  Convergence tolerance
+</ParamField>
+
+### Regularization
+
+Add L2 regularization to prevent overfitting:
+
+```typescript
+const regularized = new LogisticRegression({
+  l2: 1.0,
+  solver: "lbfgs",
+  maxIter: 20000,
+});
+regularized.fit(X, y);
+```
+
+<Note>
+  LogisticRegression uses native Zig kernels for acceleration. The model automatically detects and uses the Zig backend when available.
+</Note>
+
+## ElasticNet
+
+ElasticNet combines L1 and L2 regularization:
+
+```typescript
+import { ElasticNet } from "bun-scikit";
+
+const elastic = new ElasticNet({
+  alpha: 1.0,
+  l1Ratio: 0.5, // 0.5 = equal mix of L1 and L2
+  maxIter: 1000,
+});
+elastic.fit(X, y);
+```
+
+## Stochastic Gradient Descent
+
+For large datasets, use SGD-based models:
+
+```typescript
+import { SGDRegressor, SGDClassifier } from "bun-scikit";
+
+// Regression
+const sgdReg = new SGDRegressor({
+  learningRate: 0.01,
+  maxIter: 1000,
+  penalty: "l2",
+  alpha: 0.0001,
+});
+sgdReg.fit(X, y);
+
+// Classification
+const sgdClf = new SGDClassifier({
+  loss: "log_loss",
+  learningRate: 0.01,
+  maxIter: 1000,
+});
+sgdClf.fit(X, y);
+```
+
+## Performance Tips
+
+<Tip>
+  **Native Acceleration**: All linear models benefit from Zig acceleration. Run `bun run native:build` to compile native kernels for 10-100x speedup on training.
+</Tip>
+
+<AccordionGroup>
+  <Accordion title="Feature Scaling">
+    Standardize features before training for better convergence:
+    ```typescript
+    import { StandardScaler } from "bun-scikit";
+    
+    const scaler = new StandardScaler();
+    const X_scaled = scaler.fitTransform(X);
+    model.fit(X_scaled, y);
+    ```
+  </Accordion>
+
+  <Accordion title="Choosing Regularization">
+    - Use **Ridge** when all features are potentially relevant
+    - Use **Lasso** when you want automatic feature selection
+    - Use **ElasticNet** when you want both effects
+  </Accordion>
+
+  <Accordion title="Solver Selection">
+    - **normal**: Fast for small datasets (< 10k samples)
+    - **gd**: Good for large datasets
+    - **lbfgs**: Best convergence, more memory
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+### Pipeline Integration
+
+```typescript
+import { Pipeline } from "bun-scikit";
+import { StandardScaler } from "bun-scikit";
+import { LogisticRegression } from "bun-scikit";
+
+const pipe = new Pipeline([
+  ["scaler", new StandardScaler()],
+  ["classifier", new LogisticRegression()],
+]);
+
+pipe.fit(X_train, y_train);
+const predictions = pipe.predict(X_test);
+```
+
+### Cross-Validation
+
+```typescript
+import { crossValScore } from "bun-scikit";
+
+const scores = crossValScore(
+  () => new Ridge({ alpha: 1.0 }),
+  X,
+  y,
+  { cv: 5, scoring: "r2" }
+);
+
+console.log(`Mean R²: ${scores.reduce((a, b) => a + b) / scores.length}`);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Selection" icon="sliders" href="/guides/model-selection">
+    Cross-validation and hyperparameter tuning
+  </Card>
+  <Card title="Zig Acceleration" icon="bolt" href="/guides/zig-acceleration">
+    Enable native performance boost
+  </Card>
+</CardGroup>

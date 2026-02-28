@@ -1,0 +1,263 @@
+---
+title: GridSearchCV
+description: Exhaustive search over specified parameter values with cross-validation
+---
+
+## Class Signature
+
+```typescript
+class GridSearchCV<TEstimator extends CrossValEstimator> {
+  constructor(
+    estimatorFactory: (params: Record<string, unknown>) => TEstimator,
+    paramGrid: ParamGrid,
+    options?: GridSearchCVOptions
+  )
+
+  fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+  predict(X: Matrix): Vector
+  score(X: Matrix, y: Vector): number
+
+  bestEstimator_: TEstimator | null
+  bestParams_: Record<string, unknown> | null
+  bestScore_: number | null
+  cvResults_: GridSearchResultRow[]
+}
+```
+
+## Constructor
+
+<ParamField path="estimatorFactory" type="(params: Record<string, unknown>) => TEstimator" required>
+  Factory function that creates an estimator instance given a parameter dictionary
+</ParamField>
+
+<ParamField path="paramGrid" type="ParamGrid" required>
+  Dictionary with parameter names as keys and arrays of parameter values to try. All combinations will be evaluated.
+  
+  Type: `Record<string, readonly unknown[]>`
+</ParamField>
+
+<ParamField path="options" type="GridSearchCVOptions">
+  Configuration options for grid search
+
+  <Expandable title="properties">
+    <ParamField path="cv" type="number | CrossValSplitter" default="5">
+      Cross-validation splitting strategy
+    </ParamField>
+
+    <ParamField path="scoring" type="BuiltInScoring | ScoringFn">
+      Scoring metric. Options: `"accuracy"`, `"f1"`, `"precision"`, `"recall"`, `"r2"`, `"mean_squared_error"`, `"neg_mean_squared_error"`, or custom function
+    </ParamField>
+
+    <ParamField path="refit" type="boolean" default="true">
+      Whether to refit the best estimator on the entire dataset after finding best parameters
+    </ParamField>
+
+    <ParamField path="errorScore" type="'raise' | number" default="'raise'">
+      Value to assign to the score if an error occurs during fitting. If 'raise', the error is raised.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+Run grid search with cross-validation on all parameter combinations.
+
+```typescript
+fit(X: Matrix, y: Vector, sampleWeight?: Vector): this
+```
+
+### predict
+
+Predict using the best estimator found during grid search.
+
+```typescript
+predict(X: Matrix): Vector
+```
+
+### score
+
+Score using the best estimator found during grid search.
+
+```typescript
+score(X: Matrix, y: Vector): number
+```
+
+## Properties
+
+<ResponseField name="bestEstimator_" type="TEstimator | null">
+  Estimator that was chosen by the search (refitted on the whole dataset if `refit=true`)
+</ResponseField>
+
+<ResponseField name="bestParams_" type="Record<string, unknown> | null">
+  Parameter setting that gave the best results
+</ResponseField>
+
+<ResponseField name="bestScore_" type="number | null">
+  Mean cross-validated score of the best estimator
+</ResponseField>
+
+<ResponseField name="cvResults_" type="GridSearchResultRow[]">
+  Detailed results for each parameter combination, including:
+  - `params` - Parameter dictionary
+  - `splitScores` - Score for each CV fold
+  - `meanTestScore` - Mean of split scores
+  - `stdTestScore` - Standard deviation of split scores
+  - `rank` - Rank of this parameter combination (1 = best)
+  - `status` - "ok" or "error"
+  - `errorMessage` - Error message if status is "error"
+</ResponseField>
+
+## Description
+
+GridSearchCV performs an exhaustive search over specified parameter values for an estimator. It evaluates all possible combinations of parameters using cross-validation and selects the best performing combination.
+
+This is the most thorough hyperparameter tuning method but can be computationally expensive for large parameter grids.
+
+## Example
+
+```typescript
+import { GridSearchCV } from 'bun-scikit';
+import { LinearRegression } from 'bun-scikit';
+
+const X = [
+  [1, 1], [1, 2], [2, 2], [2, 3],
+  [3, 1], [3, 2], [4, 2], [4, 3]
+];
+const y = [3, 4, 5, 6, 5, 6, 7, 8];
+
+// Define parameter grid
+const paramGrid = {
+  fitIntercept: [true, false],
+  normalize: [true, false]
+};
+// This will test 2 × 2 = 4 combinations
+
+// Create grid search
+const gridSearch = new GridSearchCV(
+  (params) => new LinearRegression(params),
+  paramGrid,
+  { cv: 5, scoring: 'r2' }
+);
+
+// Fit on data
+gridSearch.fit(X, y);
+
+// View results
+console.log('Best parameters:', gridSearch.bestParams_);
+console.log('Best R² score:', gridSearch.bestScore_);
+
+// Use best model for prediction
+const predictions = gridSearch.predict([[2.5, 2.5]]);
+console.log('Prediction:', predictions);
+
+// View all results sorted by rank
+const sortedResults = gridSearch.cvResults_.sort((a, b) => a.rank - b.rank);
+for (const result of sortedResults) {
+  console.log(`Rank ${result.rank}:`, result.params, '→', result.meanTestScore);
+}
+```
+
+## Classification Example
+
+```typescript
+import { GridSearchCV, StratifiedKFold } from 'bun-scikit';
+import { LogisticRegression } from 'bun-scikit';
+
+const X = [
+  [1, 2], [2, 3], [3, 4], [4, 5],
+  [5, 6], [6, 7], [7, 8], [8, 9]
+];
+const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+const paramGrid = {
+  learningRate: [0.01, 0.1, 0.5],
+  maxIterations: [100, 500, 1000],
+  regularization: [0, 0.01, 0.1]
+};
+// 3 × 3 × 3 = 27 combinations
+
+const gridSearch = new GridSearchCV(
+  (params) => new LogisticRegression(params),
+  paramGrid,
+  {
+    cv: new StratifiedKFold({ nSplits: 4, shuffle: true }),
+    scoring: 'f1'
+  }
+);
+
+gridSearch.fit(X, y);
+
+console.log('Best F1 score:', gridSearch.bestScore_);
+console.log('Best hyperparameters:', gridSearch.bestParams_);
+```
+
+## Error Handling
+
+```typescript
+import { GridSearchCV } from 'bun-scikit';
+import { LinearRegression } from 'bun-scikit';
+
+const X = [[1], [2], [3]];
+const y = [1, 2, 3];
+
+const paramGrid = {
+  alpha: [-1, 0, 0.5, 1], // -1 might cause an error
+};
+
+// Option 1: Raise errors (default)
+const gridSearchRaise = new GridSearchCV(
+  (params) => new LinearRegression(params),
+  paramGrid,
+  { errorScore: 'raise' }
+);
+
+try {
+  gridSearchRaise.fit(X, y);
+} catch (error) {
+  console.error('Grid search failed:', error);
+}
+
+// Option 2: Assign a score to failures
+const gridSearchContinue = new GridSearchCV(
+  (params) => new LinearRegression(params),
+  paramGrid,
+  { errorScore: -999 } // Failed combinations get score of -999
+);
+
+gridSearchContinue.fit(X, y);
+// Only successful combinations will be ranked highly
+console.log('Best score:', gridSearchContinue.bestScore_);
+```
+
+## Viewing Detailed Results
+
+```typescript
+import { GridSearchCV } from 'bun-scikit';
+
+// After fitting...
+const results = gridSearch.cvResults_;
+
+for (const result of results) {
+  console.log('\nParameters:', result.params);
+  console.log('Mean score:', result.meanTestScore.toFixed(4));
+  console.log('Std dev:', result.stdTestScore.toFixed(4));
+  console.log('Rank:', result.rank);
+  console.log('Split scores:', result.splitScores);
+  
+  if (result.status === 'error') {
+    console.log('Error:', result.errorMessage);
+  }
+}
+```
+
+## Notes
+
+- Grid search evaluates **all** combinations of parameters (Cartesian product)
+- Time complexity: O(n_params × n_values^n_params × n_folds)
+- For large parameter spaces, consider using `RandomizedSearchCV` instead
+- The `estimatorFactory` must accept a parameter object and return a configured estimator
+- When `refit=true`, the best estimator is retrained on the entire dataset
+- Results are ranked with 1 being the best
+- For loss metrics (e.g., MSE), the ranking is reversed (lower is better)

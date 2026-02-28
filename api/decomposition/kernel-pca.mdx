@@ -1,0 +1,150 @@
+---
+title: KernelPCA
+description: Non-linear dimensionality reduction using kernel methods
+---
+
+## Overview
+
+KernelPCA extends PCA to capture non-linear relationships in data by implicitly mapping it to a high-dimensional feature space using kernel functions.
+
+## Constructor
+
+```typescript
+new KernelPCA(options?: KernelPCAOptions)
+```
+
+<ParamField path="options" type="KernelPCAOptions">
+  Configuration options for KernelPCA
+  
+  <Expandable title="properties">
+    <ParamField path="nComponents" type="number" optional>
+      Number of components to keep. If not set, all components are kept.
+    </ParamField>
+    
+    <ParamField path="kernel" type="'linear' | 'rbf' | 'poly'" default="'rbf'" optional>
+      Kernel function to use:
+      - `'linear'`: Linear kernel (equivalent to standard PCA)
+      - `'rbf'`: Radial Basis Function kernel (Gaussian)
+      - `'poly'`: Polynomial kernel
+    </ParamField>
+    
+    <ParamField path="gamma" type="number" optional>
+      Kernel coefficient for 'rbf' and 'poly'. Defaults to 1/nFeatures.
+    </ParamField>
+    
+    <ParamField path="degree" type="number" default="3" optional>
+      Degree for polynomial kernel (ignored for other kernels).
+    </ParamField>
+    
+    <ParamField path="coef0" type="number" default="1" optional>
+      Independent term in polynomial kernel.
+    </ParamField>
+    
+    <ParamField path="tolerance" type="number" default="1e-12" optional>
+      Convergence tolerance for eigenvalue decomposition.
+    </ParamField>
+    
+    <ParamField path="maxIter" type="number" default="10000" optional>
+      Maximum iterations for eigenvalue decomposition.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Methods
+
+### fit
+
+```typescript
+fit(X: Matrix): this
+```
+
+Compute kernel principal components from training data.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** The fitted KernelPCA instance
+
+### transform
+
+```typescript
+transform(X: Matrix): Matrix
+```
+
+Project data onto kernel principal components.
+
+<ParamField path="X" type="Matrix" required>
+  Data to transform of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+### fitTransform
+
+```typescript
+fitTransform(X: Matrix): Matrix
+```
+
+Fit the model and transform data in one step.
+
+<ParamField path="X" type="Matrix" required>
+  Training data of shape [nSamples, nFeatures]
+</ParamField>
+
+**Returns:** Transformed data of shape [nSamples, nComponents]
+
+## Properties
+
+<ParamField path="alphas_" type="Matrix | null">
+  Eigenvectors in kernel space, shape [nSamples, nComponents]
+</ParamField>
+
+<ParamField path="lambdas_" type="Vector | null">
+  Eigenvalues of the centered kernel matrix
+</ParamField>
+
+<ParamField path="nFeaturesIn_" type="number | null">
+  Number of features seen during fit
+</ParamField>
+
+## Example
+
+```typescript
+import { KernelPCA } from '@elucidate/elucidate';
+
+// Non-linear data (e.g., circular pattern)
+const data = [
+  [1.0, 0.0],
+  [0.9, 0.4],
+  [0.5, 0.9],
+  [0.0, 1.0],
+  [-0.5, 0.9],
+  [-0.9, 0.4],
+  [-1.0, 0.0],
+  [-0.9, -0.4],
+];
+
+// RBF kernel for circular patterns
+const kpca = new KernelPCA({ 
+  nComponents: 2,
+  kernel: 'rbf',
+  gamma: 1.0 
+});
+
+const transformed = kpca.fitTransform(data);
+console.log('Transformed:', transformed);
+console.log('Eigenvalues:', kpca.lambdas_);
+
+// Polynomial kernel for polynomial relationships
+const kpcaPoly = new KernelPCA({
+  nComponents: 2,
+  kernel: 'poly',
+  degree: 3,
+  gamma: 1.0,
+  coef0: 1
+});
+
+const polyTransformed = kpcaPoly.fitTransform(data);
+console.log('Polynomial transformed:', polyTransformed);
+```
